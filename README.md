@@ -2,7 +2,7 @@
 
 ### Welcome to the IKA language page.
 
-Ika is a new programming language who's main purpose to teach its author more about creating a programming language.  As such it's currently not really useful for much of anything other then watching its author work really hard to gain a clue.
+Ika is a new programming language whose main purpose is to teach its author more about creating a programming language.  As such, it's currently not useful for much of anything other than watching its author work hard to gain a clue.
 
 ## Driving principals
 
