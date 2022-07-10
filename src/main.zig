@@ -13,40 +13,23 @@ pub fn vprintln(comptime msg: []const u8, args: anytype) void {
 }
 
 pub fn toAbsolutePath(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
-    const cwd = std.process.getCwdAlloc(allocator) catch |err| {
-        vprintln("Error getting the current directory error was {}", .{err});
-        return err;
-    };
+    const cwd = try std.process.getCwdAlloc(allocator);
     defer allocator.free(cwd);
-    const full_path = fs.path.resolve(allocator, &[_][]const u8{ cwd, path }) catch |err| {
-        vprintln("Failed to resolve relative path, error was {}", .{err});
-        return err;
-    };
-    return full_path;
+
+    return try fs.path.resolve(allocator, &[_][]const u8{ cwd, path });
 }
 
 pub fn getFileContents(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
     const full_path = try toAbsolutePath(allocator, path);
     defer allocator.free(full_path);
-    const src_file = fs.openFileAbsolute(full_path, .{}) catch |err| {
-        vprintln("Whoops, I can't seem to open {s}, error was {}.", .{ path, err });
-        return err;
-    };
-    const stats = src_file.stat() catch |err| {
-        vprintln("Whoops, I can't seem to stat {s}, error was {}.", .{ path, err });
-        return err;
-    };
+    const src_file = try fs.openFileAbsolute(full_path, .{});
+    const stats = try src_file.stat();
 
     // Allocate a buffer big enough to hold the whole file.
-    var buffer = allocator.alloc(u8, stats.size) catch |err| {
-        vprintln("Error attempting to allocate enough memory, error was: {}", .{err});
-        return err;
-    };
+    var buffer = try allocator.alloc(u8, stats.size);
 
-    var bytes_read = src_file.readAll(buffer) catch |err| {
-        vprintln("Failed to read data from {s}, error was {}.", .{ path, err });
-        return err;
-    };
+    var bytes_read = try src_file.readAll(buffer);
+
     if (bytes_read != stats.size) {
         vprintln("File read size mismatch, expected to read {}, actually read {}.", .{ stats.size, bytes_read });
         return error.SizeMismatch;
@@ -62,7 +45,10 @@ pub fn main() void {
     gpa.setRequestedMemoryLimit(1000000);
     var allocator = gpa.allocator();
 
-    const args = std.process.argsAlloc(allocator) catch unreachable;
+    const args = std.process.argsAlloc(allocator) catch |err| {
+        vprintln("Failed to correctly receive arguments!  Error was: {}", .{err});
+        return;
+    };
     defer std.process.argsFree(allocator, args);
 
     if (args.len != 2) {
@@ -73,7 +59,14 @@ pub fn main() void {
         return;
     }
 
-    const src = getFileContents(allocator, args[1]) catch unreachable;
+    const src = getFileContents(allocator, args[1]) catch |err| {
+        switch (err) {
+            error.FileNotFound => vprintln("File '{s}' does not exist.", .{args[1]}),
+            error.OutOfMemory => println("Ran out of available memory reading the file, time to refactor."),
+            else => vprintln("Compile error, reading source file: {}", .{err}),
+        }
+        return;
+    };
     defer allocator.free(src);
     println("I was able to read the file!");
     println("Look, here it is:");
