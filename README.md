@@ -15,7 +15,7 @@ Ika is a new programming language whose main purpose is to teach its author more
 
 ## Implementation
 
-The "implementation" is currently still quite hypothetical.  It's currently using Zig, but that is subject to change at any time.  Zig is in the sweet spot for this kind of experiment, despite faily awful error messaging.  If I ever manage to wrangle a Jai invite, it may move in that direction.
+The "implementation" is currently still quite hypothetical.  It's currently using --Zig-- C, but that is subject to change at any time.  The project has moved to C, as Zig was a bit too raw just yet. 
 
 ## thanks
 

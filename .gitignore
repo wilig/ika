@@ -1,4 +1,4 @@
-/zig-cache/
-/zig-out/
-/src/zig-cache/
-/a.out
+/ika
+*.o
+.clang*
+.vscode*

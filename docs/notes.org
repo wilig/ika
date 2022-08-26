@@ -1,0 +1,6 @@
+#+title: Ika language thoughts
+
+* Named parameters with defaults are really nice
+* Returning multiple values is very useful
+* Pattern matching is way nicer then nested ifs
+* Tagged enums are a really nice idea
