@@ -5,19 +5,19 @@ void debug_print_parsed_scope(compilation_unit_t *, scope_t *);
 void debug_print_parsed_expr(compilation_unit_t *unit, expr_t *expr) {
   switch (expr->type) {
   case literal_value: {
-    literal_value_t *lv = expr->expr_ptr->literal_value;
+    literal_value_t *lv = &expr->literal;
     printf("%.*s", lv->value->value.length, lv->value->value.ptr);
     printf(" <LiteralValue> ");
     break;
   }
   case identifier: {
-    identifier_t *i = expr->expr_ptr->identifier;
+    identifier_t *i = &expr->identifier;
     printf("%.*s", i->value->value.length, i->value->value.ptr);
     printf(" <Identifier> ");
     break;
   }
   case binary_expr: {
-    binary_expr_t *be = expr->expr_ptr->binary_expression;
+    binary_expr_t *be = &expr->binary;
     debug_print_parsed_expr(unit, be->left);
     printf("%.*s", be->op->value.length, be->op->value.ptr);
     printf(" <Operator> ");
@@ -30,7 +30,7 @@ void debug_print_parsed_expr(compilation_unit_t *unit, expr_t *expr) {
 void debug_print_parsed_stmt(compilation_unit_t *unit, stmt_t *stmt) {
   switch (stmt->type) {
   case let_statement: {
-    let_stmt_t *ls = stmt->stmt_ptr->let_statement;
+    let_stmt_t *ls = &stmt->let_statement;
     printf("LET ");
     printf("%.*s", ls->identifier->value.length, ls->identifier->value.ptr);
     printf(" = ");
@@ -39,7 +39,7 @@ void debug_print_parsed_stmt(compilation_unit_t *unit, stmt_t *stmt) {
     break;
   }
   case var_statement: {
-    var_stmt_t *vs = stmt->stmt_ptr->var_statement;
+    var_stmt_t *vs = &stmt->var_statement;
     printf("VAR ");
     printf("%.*s", vs->identifier->value.length, vs->identifier->value.ptr);
     printf(" = ");
@@ -48,7 +48,7 @@ void debug_print_parsed_stmt(compilation_unit_t *unit, stmt_t *stmt) {
     break;
   }
   case assignment_statement: {
-    assignment_stmt_t *as = stmt->stmt_ptr->assignment_statement;
+    assignment_stmt_t *as = &stmt->assignment_statement;
     printf("%.*s", as->identifier->value.length, as->identifier->value.ptr);
     printf(" ");
     printf("%.*s", as->op->value.length, as->op->value.ptr);
@@ -58,7 +58,7 @@ void debug_print_parsed_stmt(compilation_unit_t *unit, stmt_t *stmt) {
     break;
   }
   case namespace_statement: {
-    namespace_stmt_t *ns = stmt->stmt_ptr->namespace_statement;
+    namespace_stmt_t *ns = &stmt->namespace_statement;
     printf("NS ");
     printf("%.*s", ns->nameToken->value.length, ns->nameToken->value.ptr);
     printf("\n");
@@ -69,7 +69,7 @@ void debug_print_parsed_stmt(compilation_unit_t *unit, stmt_t *stmt) {
     break;
   }
   case if_statement: {
-    if_stmt_t *fi = stmt->stmt_ptr->if_statement;
+    if_stmt_t *fi = &stmt->if_statement;
     printf("IF ");
     debug_print_parsed_expr(unit, fi->conditional);
     debug_print_parsed_scope(unit, fi->if_scope);

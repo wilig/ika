@@ -313,13 +313,15 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
     switch (peek_current_token(unit)->type) {
     case ika_keyword_let: {
       printf("Parsing let statement\n");
-      stmt_t *let_stmt = parse_let_stmt(unit);
+      stmt_t* let_stmt = make_stmt(unit->allocator);
+      parse_let_stmt(unit, let_stmt);
       scope->decls[total_decls++] = let_stmt;
       break;
     }
     case ika_keyword_var: {
       printf("Parsing var statement\n");
-      stmt_t *var_stmt = parse_var_stmt(unit);
+      stmt_t* var_stmt = make_stmt(unit->allocator);
+      parse_var_stmt(unit, var_stmt);
       scope->decls[total_decls++] = var_stmt;
       break;
     }
@@ -329,24 +331,25 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
         assert(false);
       }
       printf("Parsing namespace\n");
-      stmt_t *ns = parse_namespace_stmt(unit);
-      unit->namespace_name =
-          &ns->stmt_ptr->namespace_statement->nameToken->value;
+      stmt_t* namespace_stmt = make_stmt(unit->allocator);
+      parse_namespace_stmt(unit, namespace_stmt);
       printf("Set namespace name\n");
-      scope->decls[total_decls++] = ns;
+      scope->decls[total_decls++] = namespace_stmt;
       printf("Done parseing namespace\n");
       break;
     }
     case ika_keyword_if: {
       printf("Parsing if statement\n");
-      stmt_t *if_stmt = parse_if_stmt(unit);
+      stmt_t* if_stmt = make_stmt(unit->allocator);
+      parse_if_stmt(unit, if_stmt);
       scope->decls[total_decls++] = if_stmt;
       break;
     }
     case ika_identifier: {
       if (an_operator(peek_next_token(unit)->type)) {
         printf("Parsing assignment statement\n");
-        stmt_t *assignment_stmt = parse_assignment_stmt(unit);
+        stmt_t *assignment_stmt = make_stmt(unit->allocator);
+        parse_assignment_stmt(unit, assignment_stmt);
         scope->decls[total_decls++] = assignment_stmt;
         break;
       }

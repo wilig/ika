@@ -1,9 +1,6 @@
-#ifndef DEFINES_H_
-#define DEFINES_H_
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
 
-#define NULL 0
-
-#endif // DEFINES_H_
+//#define NULL 0

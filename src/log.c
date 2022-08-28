@@ -6,7 +6,7 @@
 #include "tokenize.h"
 #include <stdint.h>
 
-logger_configuration __LOGGER_CONFIG = (logger_configuration){.valid = false};
+static logger_configuration __LOGGER_CONFIG = {.valid = false};
 
 hashtbl_str_t get_type_lookup_table() { return __LOGGER_CONFIG.handlers; }
 
@@ -166,7 +166,8 @@ void log_error(char *format, ...) {
 }
 
 void log_init(allocator_t allocator, logger_configuration options) {
-  __LOGGER_CONFIG = options;
+  __LOGGER_CONFIG.file_handle = options.file_handle;
+  __LOGGER_CONFIG.active_log_level = options.active_log_level;
   __LOGGER_CONFIG.handlers = hashtbl_str_init(allocator);
   __LOGGER_CONFIG.valid = true;
 }

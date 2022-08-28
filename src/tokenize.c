@@ -1,7 +1,6 @@
 #include "tokenize.h"
 #include "allocator.h"
 #include "defines.h"
-#include "error.h"
 #include "errors.h"
 #include "log.h"
 #include "str.h"
@@ -11,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 
 int is_whitespace(tokenizer_input_stream *s) {
   char c = str_get_char(s->source, s->pos);

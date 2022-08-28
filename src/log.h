@@ -33,17 +33,7 @@ void log_deinit();
 void log_register_type(str, void func(FILE *, void *));
 
 #define output(fh, value)                                                      \
-  _Generic((value), char * : output_char_impl, default : output_str_impl)(fh, value)
+  _Generic((value), \
+  char * : output_char_impl, \
+  default : output_str_impl)(fh, value)
 
-/* // The ## before __VA_ARGS__ swallows the comman to allow an empty list. */
-/* #define log_debug(logger_t, fmt, ...) \ */
-/*   log_debug_impl(logger_t, maybe_convert_to_str(fmt), ##__VA_ARGS__) */
-
-/* #define log_info(logger_t, fmt, ...) \ */
-/*   log_info_impl(logger_t, maybe_convert_to_str(fmt), ##__VA_ARGS__) */
-
-/* #define log_warn(logger_t, fmt, ...) \ */
-/*   log_warn_impl(logger_t, maybe_convert_to_str(fmt), ##__VA_ARGS__) */
-
-/* #define log_error(logger_t, fmt, ...) \ */
-/*   log_error_impl(logger_t, maybe_convert_to_str(fmt), ##__VA_ARGS__) */
