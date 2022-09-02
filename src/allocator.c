@@ -113,8 +113,8 @@ allocated_memory allocator_realloc(allocator_t allocator, allocated_memory mem,
   }
 }
 
-void *allocator_alloc_or_exit(allocator_t *allocator, uint64_t bytes_to_alloc) {
-  allocated_memory mem = allocator_alloc(*allocator, bytes_to_alloc);
+void *allocator_alloc_or_exit(allocator_t allocator, uint64_t bytes_to_alloc) {
+  allocated_memory mem = allocator_alloc(allocator, bytes_to_alloc);
   if (!mem.valid) {
     log_error("Failed to allocate memory, so exiting according to contract.");
     exit(-1);

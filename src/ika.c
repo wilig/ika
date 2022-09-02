@@ -17,6 +17,8 @@ int main(int argc, char **argv) {
            (logger_configuration){.active_log_level = debug_log_level,
                                   .file_handle = stdout});
   log_register_type(cstr("token"), tokenize_print_token);
+  printf("Value of true is %d\n", true);
+  printf("Value of false is %d\n", false);
   struct stat info;
   // char *buffer;
   if (argc != 2) {
@@ -66,7 +68,7 @@ int main(int argc, char **argv) {
   }
   log_info("Moving to parsing phase\n");
   compilation_unit_t unit = (compilation_unit_t){.src_file = {argv[1]},
-                                                 .allocator = &allocator,
+                                                 .allocator = allocator,
                                                  .buffer = &contents,
                                                  .tokens = tokens,
                                                  .current_token_idx = 0};

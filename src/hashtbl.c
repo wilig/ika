@@ -14,7 +14,7 @@ uint32_t str_hash(str s, uint64_t table_capacity) {
 bool hashtbl_str_insert(hashtbl_str_t ht, str_entry_t entry) {
   allocated_memory mem = allocator_alloc(ht.allocator, sizeof(str_entry_t));
   if (!mem.valid) {
-    log_error("failed to allocate memory to store hash table entry");
+    log_error("failed to allocate memory to store hash table entry\n");
     return false;
   }
 
@@ -43,6 +43,11 @@ bool hashtbl_str_insert(hashtbl_str_t ht, str_entry_t entry) {
       return true;
     }
   }
+}
+
+hashtbl_str_keys_t hashtbl_str_get_keys(hashtbl_str_t ht) {
+  // TODO: return a list of keys
+  return (hashtbl_str_keys_t){.count = 0, .key = NULL};
 }
 
 str_entry_t hashtbl_str_lookup(hashtbl_str_t ht, str key) {
@@ -94,7 +99,6 @@ bool hashtbl_str_remove(hashtbl_str_t ht, str key) {
   return false;
 }
 
-// Here lies a hashtable, that needs implementation
 hashtbl_str_t hashtbl_str_init(allocator_t allocator) {
   allocated_memory mem =
       allocator_alloc(allocator, sizeof(str_entry_t) * DEFAULT_CAPACITY);

@@ -36,4 +36,3 @@ void log_register_type(str, void func(FILE *, void *));
   _Generic((value), \
   char * : output_char_impl, \
   default : output_str_impl)(fh, value)
-

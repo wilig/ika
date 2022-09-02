@@ -178,6 +178,7 @@ void log_deinit() {
 
 void log_register_type(str key, void func(FILE *, void *)) {
   log_info("registering a logging type for '{s}'\n", key);
-  str_entry_t i = (str_entry_t){.key = key, .value = (void *)func, .valid = true};
+  str_entry_t i =
+      (str_entry_t){.key = key, .value = (void *)func, .valid = true};
   hashtbl_str_insert(get_type_lookup_table(), i);
 }

@@ -42,6 +42,6 @@ allocator_t allocator_init(allocator_type, allocator_options);
 void allocator_deinit(allocator_t);
 
 allocated_memory allocator_alloc(allocator_t, uint64_t);
-void *allocator_alloc_or_exit(allocator_t *, uint64_t);
+void *allocator_alloc_or_exit(allocator_t, uint64_t);
 allocated_memory allocator_realloc(allocator_t, allocated_memory, uint64_t);
 void allocator_free(allocator_t, void *);

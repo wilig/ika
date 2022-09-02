@@ -134,7 +134,7 @@ typedef struct scope_t {
 } scope_t;
 
 typedef struct {
-  allocator_t *allocator;
+  allocator_t allocator;
   str src_file;
 
   str *buffer;
@@ -151,5 +151,5 @@ typedef struct {
 
 void parser_parse(compilation_unit_t *);
 
-void new_compilation_unit(allocator_t *, char *, str *, token **,
+void new_compilation_unit(allocator_t, char *, str *, token **,
                           compilation_unit_t *);

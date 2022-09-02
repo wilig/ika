@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void new_scope(allocator_t *, str name, scope_t *, scope_t *);
+void new_scope(allocator_t, str name, scope_t *, scope_t *);
 
 // TODO: Move to passing the stmt/expression to the function
 // Forward declaration
@@ -97,11 +97,11 @@ bool is_one_of(e_ika_type t, e_ika_type to_check[]) {
   return false;
 }
 
-expr_t *new_expr(allocator_t *allocator) {
+expr_t *new_expr(allocator_t allocator) {
   return allocator_alloc_or_exit(allocator, sizeof(expr_t));
 }
 
-stmt_t *make_stmt(allocator_t *allocator) {
+stmt_t *make_stmt(allocator_t allocator) {
   return allocator_alloc_or_exit(allocator, sizeof(stmt_t));
 }
 
@@ -234,7 +234,13 @@ void parse_let_stmt(compilation_unit_t *unit, stmt_t *stmt) {
            "expectations\n");
     exit(-1);
   }
-  expect_and_consume(unit, ika_semi_colon);
+  // Insert constant identifier into symbol table
+  symbol_table_insert(unit->current_scope->symbol_table,
+                      stmt->let_statement.identifier->value,
+                      stmt->let_statement.explicit_type == NULL
+                          ? ika_unknown
+                          : stmt->let_statement.explicit_type->type,
+                      true, 0, 0);
 }
 
 void parse_var_stmt(compilation_unit_t *unit, stmt_t *stmt) {
@@ -270,7 +276,13 @@ void parse_var_stmt(compilation_unit_t *unit, stmt_t *stmt) {
            "expectations\n");
     exit(-1);
   }
-  expect_and_consume(unit, ika_semi_colon);
+  // Insert variable identifier into symbol table
+  symbol_table_insert(unit->current_scope->symbol_table,
+                      stmt->var_statement.identifier->value,
+                      stmt->var_statement.explicit_type == NULL
+                          ? ika_unknown
+                          : stmt->var_statement.explicit_type->type,
+                      false, 0, 0);
 }
 
 void parse_if_stmt(compilation_unit_t *unit, stmt_t *stmt) {
@@ -318,7 +330,7 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
   }
   int total_decls = 0;
   allocated_memory decls_mem =
-      allocator_alloc(*unit->allocator, sizeof(stmt_t *) * 10);
+      allocator_alloc(unit->allocator, sizeof(stmt_t *) * 10);
   if (!decls_mem.valid) {
     log_error("Failed to allocate memory for declarations\n");
     exit(-1);
@@ -383,7 +395,7 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
     }
     }
     if (total_decls % 10 == 0) {
-      decls_mem = allocator_realloc(*unit->allocator, decls_mem,
+      decls_mem = allocator_realloc(unit->allocator, decls_mem,
                                     (total_decls + 10) * sizeof(stmt_t *));
       if (!decls_mem.valid) {
         log_error("Failed to realloc memory for declarations\n");
@@ -404,10 +416,10 @@ void parser_parse(compilation_unit_t *unit) {
   printf("Parsing complete\n");
 }
 
-void new_scope(allocator_t *allocator, str name, scope_t *parent_scope,
+void new_scope(allocator_t allocator, str name, scope_t *parent_scope,
                scope_t *scope) {
   scope->name = name;
-  scope->symbol_table = *symbol_table_init(*allocator);
+  scope->symbol_table = symbol_table_init(allocator, scope);
   scope->number_of_children = 0;
   // TODO: Find a better way
   scope->children = allocator_alloc_or_exit(allocator, sizeof(scope_t *) * 100);
@@ -418,9 +430,9 @@ void new_scope(allocator_t *allocator, str name, scope_t *parent_scope,
   }
 }
 
-void new_compilation_unit(allocator_t *allocator, char *filename, str *buffer,
+void new_compilation_unit(allocator_t allocator, char *filename, str *buffer,
                           token **tokens, compilation_unit_t *unit) {
-  allocated_memory mem = allocator_alloc(*allocator, sizeof(scope_t));
+  allocated_memory mem = allocator_alloc(allocator, sizeof(scope_t));
   if (!mem.valid) {
     log_error("Failed to allocate memory, bailing..");
     exit(-1);
