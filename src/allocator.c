@@ -24,6 +24,7 @@ allocated_memory linear_allocator_alloc(allocator_t allocator,
     linear_allocator *la = (linear_allocator *)allocator.allocator_internals;
     // Handle overflow
     if (bytes_to_alloc > la->capacity - la->free_space) {
+      log_warn("Expanding allocation pool\n");
       allocated_memory new_bucket = linear_allocator_expand(la, bytes_to_alloc);
       if (new_bucket.valid == true) {
         la->bucket_o_mem = new_bucket.ptr;

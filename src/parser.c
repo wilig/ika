@@ -1,8 +1,8 @@
 #include "parser.h"
 #include "allocator.h"
-#include "ast.h"
 #include "hashtbl.h"
 #include "log.h"
+#include "symtbl.h"
 #include "tokenize.h"
 #include "types.h"
 #include <assert.h>
@@ -22,7 +22,7 @@ typedef bool (*type_tester_ptr_t)(e_ika_type);
 
 void parse_expression(compilation_unit_t *, expr_t *);
 
-token *next_token(compilation_unit_t *unit) {
+token *get_token(compilation_unit_t *unit) {
   return unit->tokens[unit->current_token_idx++];
 }
 
@@ -68,17 +68,17 @@ bool an_identifer(e_ika_type type) { return type == ika_identifier; }
 bool is(type_tester_ptr_t fn, token *t) { return fn(t->type); }
 
 void expect_and_consume(compilation_unit_t *unit, e_ika_type expected_type) {
-  if (next_token(unit)->type != expected_type) {
+  if (get_token(unit)->type != expected_type) {
     log_error("expected type: {s}, got type: {s}\n",
               tokenize_get_token_type_name(expected_type),
-              tokenize_get_token_type_name(next_token(unit)->type));
+              tokenize_get_token_type_name(get_token(unit)->type));
     assert(false);
   }
 }
 
 bool conform(compilation_unit_t *unit, type_tester_ptr_t funs[], size_t total) {
   for (int i = 0; i < total; i++) {
-    if (!(funs[i])(next_token(unit)->type)) {
+    if (!(funs[i])(get_token(unit)->type)) {
       rewind_tokens(unit, i + 1);
       return false;
     }
@@ -105,8 +105,8 @@ stmt_t *make_stmt(allocator_t *allocator) {
 }
 
 static void parse_literal(compilation_unit_t *unit, expr_t *expr) {
-  token *t = next_token(unit);
-  assert(t->type == ika_identifier);
+  token *t = get_token(unit);
+  assert(a_literal(t->type));
   expr->type = literal_value;
   expr->literal.start_token = unit->current_token_idx;
   expr->literal.end_token = unit->current_token_idx;
@@ -115,7 +115,7 @@ static void parse_literal(compilation_unit_t *unit, expr_t *expr) {
 }
 
 static void parse_identifier(compilation_unit_t *unit, expr_t *expr) {
-  token *t = next_token(unit);
+  token *t = get_token(unit);
   assert(t->type == ika_identifier);
   expr->type = identifier;
   expr->identifier.start_token = unit->current_token_idx;
@@ -131,7 +131,7 @@ static void parse_binary(compilation_unit_t *unit, expr_t *expr) {
   expr->binary.left = new_expr(unit->allocator);
   parse_expression(unit, expr->binary.left);
 
-  expr->binary.op = next_token(unit);
+  expr->binary.op = get_token(unit);
   assert(expr->binary.op->type > __ika_operators_start &&
          expr->binary.op->type < __ika_operators_end);
 
@@ -163,16 +163,16 @@ void parse_expression(compilation_unit_t *unit, expr_t *expr) {
 }
 
 void parse_namespace_stmt(compilation_unit_t *unit, stmt_t *stmt) {
-  token *ns_token = next_token(unit);
+  token *ns_token = get_token(unit);
 
   // Sanity check
   assert(ns_token != NULL);
   assert(ns_token->type == ika_keyword_ns);
-  assert(peek_next_token(unit)->type == ika_identifier);
+  assert(peek_current_token(unit)->type == ika_identifier);
 
   stmt->type = namespace_statement;
   stmt->namespace_statement.start_token = unit->current_token_idx;
-  stmt->namespace_statement.nameToken = next_token(unit);
+  stmt->namespace_statement.nameToken = get_token(unit);
 
   expect_and_consume(unit, ika_semi_colon);
 
@@ -185,14 +185,14 @@ void parse_assignment_stmt(compilation_unit_t *unit, stmt_t *stmt) {
 
   stmt->type = assignment_statement;
   stmt->assignment_statement.start_token = unit->current_token_idx;
-  stmt->assignment_statement.identifier = next_token(unit);
-  stmt->assignment_statement.op = next_token(unit);
+  stmt->assignment_statement.identifier = get_token(unit);
+  stmt->assignment_statement.op = get_token(unit);
   stmt->assignment_statement.expr = new_expr(unit->allocator);
   parse_expression(unit, stmt->assignment_statement.expr);
 }
 
 void parse_let_stmt(compilation_unit_t *unit, stmt_t *stmt) {
-  token *let_token = next_token(unit);
+  token *let_token = get_token(unit);
   // Sanity checks
   assert(let_token != NULL);
   assert(let_token->type == ika_keyword_let);
@@ -207,14 +207,14 @@ void parse_let_stmt(compilation_unit_t *unit, stmt_t *stmt) {
   type_tester_ptr_t explicitly_typed[] = {&an_identifer, &a_colon, &a_type,
                                           &an_assign};
   if (conform(unit, inferred, 2)) {
-    stmt->let_statement.identifier = next_token(unit);
+    stmt->let_statement.identifier = get_token(unit);
     stmt->let_statement.explicit_type = NULL;
     expect_and_consume(unit, ika_untyped_assign);
     parse_expression(unit, stmt->let_statement.expr);
   } else if (conform(unit, explicitly_typed, 4)) {
-    stmt->let_statement.identifier = next_token(unit);
+    stmt->let_statement.identifier = get_token(unit);
     expect_and_consume(unit, ika_colon);
-    stmt->let_statement.explicit_type = next_token(unit);
+    stmt->let_statement.explicit_type = get_token(unit);
     expect_and_consume(unit, ika_assign);
     parse_expression(unit, stmt->let_statement.expr);
   } else {
@@ -222,10 +222,11 @@ void parse_let_stmt(compilation_unit_t *unit, stmt_t *stmt) {
            "expectations\n");
     exit(-1);
   }
+  expect_and_consume(unit, ika_semi_colon);
 }
 
 void parse_var_stmt(compilation_unit_t *unit, stmt_t *stmt) {
-  token *var_token = next_token(unit);
+  token *var_token = get_token(unit);
   // Sanity checks
   assert(var_token != NULL);
   assert(var_token->type == ika_keyword_var);
@@ -240,14 +241,14 @@ void parse_var_stmt(compilation_unit_t *unit, stmt_t *stmt) {
   type_tester_ptr_t explicitly_typed[] = {&an_identifer, &a_colon, &a_type,
                                           &an_assign};
   if (conform(unit, inferred, 2)) {
-    stmt->var_statement.identifier = next_token(unit);
+    stmt->var_statement.identifier = get_token(unit);
     stmt->var_statement.explicit_type = NULL;
     expect_and_consume(unit, ika_untyped_assign);
     parse_expression(unit, stmt->var_statement.expr);
   } else if (conform(unit, explicitly_typed, 4)) {
-    stmt->var_statement.identifier = next_token(unit);
+    stmt->var_statement.identifier = get_token(unit);
     expect_and_consume(unit, ika_colon);
-    stmt->var_statement.explicit_type = next_token(unit);
+    stmt->var_statement.explicit_type = get_token(unit);
     expect_and_consume(unit, ika_assign);
     parse_expression(unit, stmt->var_statement.expr);
   } else {
@@ -255,10 +256,11 @@ void parse_var_stmt(compilation_unit_t *unit, stmt_t *stmt) {
            "expectations\n");
     exit(-1);
   }
+  expect_and_consume(unit, ika_semi_colon);
 }
 
 void parse_if_stmt(compilation_unit_t *unit, stmt_t *stmt) {
-  token *if_token = next_token(unit);
+  token *if_token = get_token(unit);
   // Sanity checks
   assert(if_token != NULL);
   assert(if_token->type == ika_keyword_if);
@@ -313,14 +315,14 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
     switch (peek_current_token(unit)->type) {
     case ika_keyword_let: {
       printf("Parsing let statement\n");
-      stmt_t* let_stmt = make_stmt(unit->allocator);
+      stmt_t *let_stmt = make_stmt(unit->allocator);
       parse_let_stmt(unit, let_stmt);
       scope->decls[total_decls++] = let_stmt;
       break;
     }
     case ika_keyword_var: {
       printf("Parsing var statement\n");
-      stmt_t* var_stmt = make_stmt(unit->allocator);
+      stmt_t *var_stmt = make_stmt(unit->allocator);
       parse_var_stmt(unit, var_stmt);
       scope->decls[total_decls++] = var_stmt;
       break;
@@ -331,7 +333,7 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
         assert(false);
       }
       printf("Parsing namespace\n");
-      stmt_t* namespace_stmt = make_stmt(unit->allocator);
+      stmt_t *namespace_stmt = make_stmt(unit->allocator);
       parse_namespace_stmt(unit, namespace_stmt);
       printf("Set namespace name\n");
       scope->decls[total_decls++] = namespace_stmt;
@@ -340,7 +342,7 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
     }
     case ika_keyword_if: {
       printf("Parsing if statement\n");
-      stmt_t* if_stmt = make_stmt(unit->allocator);
+      stmt_t *if_stmt = make_stmt(unit->allocator);
       parse_if_stmt(unit, if_stmt);
       scope->decls[total_decls++] = if_stmt;
       break;
@@ -355,7 +357,7 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
       }
     }
     case ika_comment: {
-      next_token(unit); // Skip the comment
+      get_token(unit); // Skip the comment
       break;
     }
     default: {
@@ -389,7 +391,7 @@ void parser_parse(compilation_unit_t *unit) {
 void new_scope(allocator_t *allocator, str name, scope_t *parent_scope,
                scope_t *scope) {
   scope->name = name;
-  scope->symbol_table = hashtbl_str_init(*allocator);
+  scope->symbol_table = *symbol_table_init(*allocator);
   scope->number_of_children = 0;
   // TODO: Find a better way
   scope->children = allocator_alloc_or_exit(allocator, sizeof(scope_t *) * 100);

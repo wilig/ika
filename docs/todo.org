@@ -1,6 +1,6 @@
-* Inbox
-** TODO Start implementing types @learning
 
-[[file:~/src/zig/ika/src/parser.zig::const AstNode = struct {]]
-** TODO Investigate QBE backend or maybe FASM
-
+* TODO Fix parsing
+* TODO Add symbol table logic to parsing
+* HOLD Add semantic analysis
+** HOLD Add type checking
+* IDEA Investigate QBE or FASM for backend
