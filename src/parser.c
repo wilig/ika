@@ -21,6 +21,7 @@ void parser_print_scope(compilation_unit_t *, scope_t *);
 typedef bool (*type_tester_ptr_t)(e_ika_type);
 
 void parse_expression(compilation_unit_t *, expr_t *);
+void parse_simple_expression(compilation_unit_t *, expr_t *);
 
 token *get_token(compilation_unit_t *unit) {
   return unit->tokens[unit->current_token_idx++];
@@ -129,7 +130,7 @@ static void parse_binary(compilation_unit_t *unit, expr_t *expr) {
   expr->binary.start_token = unit->current_token_idx;
 
   expr->binary.left = new_expr(unit->allocator);
-  parse_expression(unit, expr->binary.left);
+  parse_simple_expression(unit, expr->binary.left);
 
   expr->binary.op = get_token(unit);
   assert(expr->binary.op->type > __ika_operators_start &&
@@ -141,24 +142,32 @@ static void parse_binary(compilation_unit_t *unit, expr_t *expr) {
   expr->binary.end_token = unit->current_token_idx;
 }
 
-void parse_expression(compilation_unit_t *unit, expr_t *expr) {
-  token *nt = peek_next_token(unit);
+void parse_simple_expression(compilation_unit_t *unit, expr_t *expr) {
   token *token = peek_current_token(unit);
 
-  if (an_operator(nt->type)) {
-    // It's a binary expression.
-    parse_binary(unit, expr);
-  } else if (a_literal(token->type) == true) {
-    printf("parsing literal\n");
+  if (a_literal(token->type) == true) {
+    printf("parsing simple literal\n");
     parse_literal(unit, expr);
   } else if (an_identifer(token->type)) {
-    printf("parsing identifier\n");
+    printf("parsing simple identifier\n");
     parse_identifier(unit, expr);
   } else {
     printf(
         "Was expecting a literal, identifer, or binary expression got a %s\n",
         tokenize_get_token_type_label(token).ptr);
     assert(false);
+  }
+}
+
+void parse_expression(compilation_unit_t *unit, expr_t *expr) {
+  token *nt = peek_next_token(unit);
+  token *token = peek_current_token(unit);
+
+  if (an_operator(nt->type)) {
+    printf("parsing binary expression\n");
+    parse_binary(unit, expr);
+  } else {
+    parse_simple_expression(unit, expr);
   }
 }
 
@@ -189,6 +198,7 @@ void parse_assignment_stmt(compilation_unit_t *unit, stmt_t *stmt) {
   stmt->assignment_statement.op = get_token(unit);
   stmt->assignment_statement.expr = new_expr(unit->allocator);
   parse_expression(unit, stmt->assignment_statement.expr);
+  expect_and_consume(unit, ika_semi_colon);
 }
 
 void parse_let_stmt(compilation_unit_t *unit, stmt_t *stmt) {
@@ -211,12 +221,14 @@ void parse_let_stmt(compilation_unit_t *unit, stmt_t *stmt) {
     stmt->let_statement.explicit_type = NULL;
     expect_and_consume(unit, ika_untyped_assign);
     parse_expression(unit, stmt->let_statement.expr);
+    expect_and_consume(unit, ika_semi_colon);
   } else if (conform(unit, explicitly_typed, 4)) {
     stmt->let_statement.identifier = get_token(unit);
     expect_and_consume(unit, ika_colon);
     stmt->let_statement.explicit_type = get_token(unit);
     expect_and_consume(unit, ika_assign);
     parse_expression(unit, stmt->let_statement.expr);
+    expect_and_consume(unit, ika_semi_colon);
   } else {
     printf("Failed to parse let statement.  Statement did not conform to "
            "expectations\n");
@@ -245,12 +257,14 @@ void parse_var_stmt(compilation_unit_t *unit, stmt_t *stmt) {
     stmt->var_statement.explicit_type = NULL;
     expect_and_consume(unit, ika_untyped_assign);
     parse_expression(unit, stmt->var_statement.expr);
+    expect_and_consume(unit, ika_semi_colon);
   } else if (conform(unit, explicitly_typed, 4)) {
     stmt->var_statement.identifier = get_token(unit);
     expect_and_consume(unit, ika_colon);
     stmt->var_statement.explicit_type = get_token(unit);
     expect_and_consume(unit, ika_assign);
     parse_expression(unit, stmt->var_statement.expr);
+    expect_and_consume(unit, ika_semi_colon);
   } else {
     printf("Failed to parse var statement.  Statement did not conform to "
            "expectations\n");
@@ -336,6 +350,8 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
       stmt_t *namespace_stmt = make_stmt(unit->allocator);
       parse_namespace_stmt(unit, namespace_stmt);
       printf("Set namespace name\n");
+      unit->namespace_name =
+          &namespace_stmt->namespace_statement.nameToken->value;
       scope->decls[total_decls++] = namespace_stmt;
       printf("Done parseing namespace\n");
       break;
