@@ -8,7 +8,7 @@
 
 static logger_configuration __LOGGER_CONFIG = {.valid = false};
 
-hashtbl_str_t get_type_lookup_table() { return __LOGGER_CONFIG.handlers; }
+hashtbl_str_t *get_type_lookup_table() { return __LOGGER_CONFIG.handlers; }
 
 void output_str_impl(FILE *stream, str s) {
   if (stream != NULL) {
@@ -45,10 +45,10 @@ void _log_print_interpolated_str(FILE *stream, char *fmt, va_list args) {
       } else if (str_eq(type_t, cstr("c*"))) {
         output(stream, va_arg(args, char *));
       } else {
-        hashtbl_str_t type_lookup_table = get_type_lookup_table();
-        str_entry_t entry = hashtbl_str_lookup(type_lookup_table, type_t);
-        if (entry.valid) {
-          void (*cb)(FILE *, void *) = (void (*)(FILE *, void *))entry.value;
+        hashtbl_str_t *type_lookup_table = get_type_lookup_table();
+        str_entry_t *entry = hashtbl_str_lookup(type_lookup_table, type_t);
+        if (entry) {
+          void (*cb)(FILE *, void *) = (void (*)(FILE *, void *))entry->value;
           uint64_t value = va_arg(args, uint64_t);
           cb(stream, (void *)value);
         } else {
@@ -180,5 +180,6 @@ void log_register_type(str key, void func(FILE *, void *)) {
   log_info("registering a logging type for '{s}'\n", key);
   str_entry_t i =
       (str_entry_t){.key = key, .value = (void *)func, .valid = true};
-  hashtbl_str_insert(get_type_lookup_table(), i);
+  hashtbl_str_t *table = get_type_lookup_table();
+  hashtbl_str_insert(table, i);
 }

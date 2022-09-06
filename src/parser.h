@@ -127,9 +127,9 @@ typedef struct scope_t {
   str name;
   stmt_t **decls;
   int total_decls;
-  symbol_table_t symbol_table;
+  symbol_table_t *symbol_table;
   struct scope_t *parent;
-  struct scope_t **children;
+  struct scope_t *children;
   size_t number_of_children;
 } scope_t;
 

@@ -37,17 +37,17 @@ typedef struct {
 typedef struct {
   allocator_t allocator;
   scope_t *scope;
-  hashtbl_str_t table;
+  hashtbl_str_t *table;
 } symbol_table_t;
 
-symbol_table_t symbol_table_init(allocator_t allocator, scope_t *scope);
+symbol_table_t *symbol_table_init(allocator_t allocator, scope_t *scope);
 
-void symbol_table_insert(symbol_table_t, str name, e_ika_type type,
+void symbol_table_insert(symbol_table_t *, str name, e_ika_type type,
                          bool constant, size_t line, size_t column);
 
-symbol_table_entry_t *symbol_table_lookup(symbol_table_t, str);
+symbol_table_entry_t *symbol_table_lookup(symbol_table_t *, str);
 
-void symbol_table_add_reference(symbol_table_t, str, size_t line,
+void symbol_table_add_reference(symbol_table_t *, str, size_t line,
                                 size_t column);
 
 /* typedef struct { */

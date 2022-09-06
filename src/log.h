@@ -20,7 +20,7 @@ typedef struct logger_configuration {
   bool valid;
   enum log_level active_log_level;
   FILE *file_handle;
-  hashtbl_str_t handlers;
+  hashtbl_str_t *handlers;
 } logger_configuration;
 
 void log_debug(char *, ...);

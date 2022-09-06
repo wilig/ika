@@ -422,11 +422,11 @@ void new_scope(allocator_t allocator, str name, scope_t *parent_scope,
   scope->symbol_table = symbol_table_init(allocator, scope);
   scope->number_of_children = 0;
   // TODO: Find a better way
-  scope->children = allocator_alloc_or_exit(allocator, sizeof(scope_t *) * 100);
+  scope->children = allocator_alloc_or_exit(allocator, sizeof(scope_t *) * 10);
   if (parent_scope != NULL) {
     // Add this scope as a child
     scope->parent = parent_scope;
-    parent_scope->children[parent_scope->number_of_children++] = scope;
+    parent_scope->children[parent_scope->number_of_children++] = *scope;
   }
 }
 
