@@ -91,7 +91,7 @@ void fill_space(int num_spaces) {
 }
 
 void debug_print_parsed_scope(compilation_unit_t *unit, scope_t *scope) {
-  printf("FILE: %s\n", unit->src_file.ptr);
+  printf("\nFILE: %s\n", unit->src_file.ptr);
   printf("SCOPE: %s\n", scope->name.ptr);
   printf("Symbol Table: \n");
   printf("--------------------------------------------------------------------"

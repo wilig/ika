@@ -7,6 +7,9 @@ let stdout := 1;
 let stderr := 2;
 let stdin  := 0;
 
+// This should cause an duplicate identifier error
+let stderr := "hello?";
+
 let weird : u64 = 100 * 340189;
 
 var name := "This is a string for the name var";
@@ -17,7 +20,7 @@ var result := 5 * multiplier;
 if(stdout == 1) {
   result = 100;
 // TODO - figure out why the following line makes tokenizing segfault.
-//  weird -= 1000;
+  weird -= 1000;
 } else {
   result = 200;
 }

@@ -22,6 +22,8 @@ void output_char_impl(FILE *stream, char *s) {
   output_str_impl(stream, cstr(s));
 }
 
+void handle_integer(FILE *stream, size_t i) { fprintf(stream, "%li", i); }
+
 void _log_print_interpolated_str(FILE *stream, char *fmt, va_list args) {
   str format = cstr(fmt);
   if (str_contains(format, cstr("{"))) {
@@ -32,7 +34,7 @@ void _log_print_interpolated_str(FILE *stream, char *fmt, va_list args) {
       if (start_brace > 0 && end_brace != -1) {
         output(stream, cstr_from_char_with_length(&format.ptr[output_head],
                                                   start_brace - output_head));
-      } else {
+      } else if (end_brace == -1) {
         // No closing brace so just dump the output
         output(stream, format);
         return;
@@ -44,6 +46,8 @@ void _log_print_interpolated_str(FILE *stream, char *fmt, va_list args) {
         output(stream, va_arg(args, str));
       } else if (str_eq(type_t, cstr("c*"))) {
         output(stream, va_arg(args, char *));
+      } else if (str_eq(type_t, cstr("d"))) {
+        handle_integer(stream, va_arg(args, size_t));
       } else {
         hashtbl_str_t *type_lookup_table = get_type_lookup_table();
         str_entry_t *entry = hashtbl_str_lookup(type_lookup_table, type_t);

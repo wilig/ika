@@ -31,15 +31,17 @@ bool hashtbl_str_insert(hashtbl_str_t *ht, str_entry_t entry) {
     ht->entries[idx] = new_entry;
     return true;
   } else { // Handle collision
-    log_info("Hash collision, adding item to list.");
+    log_info("Hash collision, adding item to list.\n");
     str_entry_t *existing_entry = ht->entries[idx];
+    log_info("'{s}' collides with '{s}'\n", new_entry->key,
+             existing_entry->key);
     while (existing_entry->next != NULL &&
-           !str_eq(existing_entry->key, entry.key)) {
+           str_eq(existing_entry->key, new_entry->key) == false) {
       existing_entry = existing_entry->next;
     }
-    if (existing_entry->next != NULL) {
-      log_info(
-          "Key already in hashtable, delete first if you want to replace it.");
+    if (str_eq(new_entry->key, existing_entry->key)) {
+      log_info("Key already in hashtable, delete first if you want to replace "
+               "it.\n");
       ht->entry_count -= 1;
       return false;
     } else {
