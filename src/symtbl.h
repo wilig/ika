@@ -32,23 +32,26 @@ typedef struct {
   bool constant;
   symbol_table_reference_t **references;
   size_t reference_count;
-} symbol_table_entry_t;
+} symtbl_entry_t;
 
 typedef struct {
   allocator_t allocator;
   scope_t *scope;
   hashtbl_str_t *table;
-} symbol_table_t;
+} symtbl_t;
 
-symbol_table_t *symbol_table_init(allocator_t allocator, scope_t *scope);
+symtbl_t *symtbl_init(allocator_t allocator, scope_t *scope);
 
-void symbol_table_insert(symbol_table_t *, str name, e_ika_type type,
-                         bool constant, size_t line, size_t column);
+void symtbl_insert(symtbl_t *, str name, e_ika_type type,
+                   bool constant, size_t line, size_t column);
 
-symbol_table_entry_t *symbol_table_lookup(symbol_table_t *, str);
+symtbl_entry_t *symtbl_lookup(symtbl_t *, str);
 
-void symbol_table_add_reference(symbol_table_t *, str, size_t line,
-                                size_t column);
+void symtbl_add_reference(symtbl_t *, str, size_t line,
+                          size_t column);
+
+void symtbl_dump(symtbl_t *);
+
 
 /* typedef struct { */
 /*   e_ika_type type_of_number; */
@@ -56,7 +59,7 @@ void symbol_table_add_reference(symbol_table_t *, str, size_t line,
 /*     uint8_t uint8; */
 /*     uint16_t uint16; */
 /*     uint32_t uint32; */
-/*     uint64_t uinut64; */
+/*     uint64_t uint64; */
 /*     int8_t int8; */
 /*     int16_t int16; */
 /*     int32_t int32; */
@@ -116,4 +119,4 @@ void symbol_table_add_reference(symbol_table_t *, str, size_t line,
 /*     ika_typed_expression_t expression; */
 /*     ika_typed_identifier_t identifier; */
 /*   }; */
-/* } symbol_table_entry_t; */
+/* } symtbl_entry_t; */

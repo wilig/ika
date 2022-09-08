@@ -20,21 +20,21 @@ typedef enum e_expr_type {
 } e_expr_type;
 
 typedef struct literal_value_t {
-  // Should be a single token;
+  // Should be a single token_t;
   int start_token;
   int end_token;
 
   e_ika_type type;
-  token *value;
+  token_t *value;
 } literal_value_t;
 
 typedef struct identifier_t {
-  // Should be a single token;
+  // Should be a single token_t;
   int start_token;
   int end_token;
 
   e_ika_type type;
-  token *value;
+  token_t *value;
 } identifier_t;
 
 typedef struct binary_expr_t {
@@ -42,7 +42,7 @@ typedef struct binary_expr_t {
   int end_token;
 
   expr_t *left;
-  token *op;
+  token_t *op;
   expr_t *right;
 } binary_expr_t;
 
@@ -67,16 +67,16 @@ typedef enum e_stmt_type {
 typedef struct assignment_stmt_t {
   int start_token;
   int end_token;
-  token *identifier;
-  token *op;
+  token_t *identifier;
+  token_t *op;
   expr_t *expr;
 } assignment_stmt_t;
 
 typedef struct var_stmt_t {
   int start_token;
   int end_token;
-  token *identifier;
-  token *explicit_type;
+  token_t *identifier;
+  token_t *explicit_type;
   expr_t *expr;
 } var_stmt_t;
 
@@ -84,21 +84,21 @@ typedef struct import_stmt_t {
   int start_token;
   int end_token;
 
-  token *pathTokens;
+  token_t *pathTokens;
 } import_stmt_t;
 
 typedef struct namespace_stmt_t {
   int start_token;
   int end_token;
 
-  token *nameToken;
+  token_t *nameToken;
 } namespace_stmt_t;
 
 typedef struct let_stmt_t {
   int start_token;
   int end_token;
-  token *identifier;
-  token *explicit_type;
+  token_t *identifier;
+  token_t *explicit_type;
   expr_t *expr;
 } let_stmt_t;
 
@@ -127,7 +127,7 @@ typedef struct scope_t {
   str name;
   stmt_t **decls;
   int total_decls;
-  symbol_table_t *symbol_table;
+  symtbl_t *symbol_table;
   struct scope_t *parent;
   struct scope_t *children;
   size_t number_of_children;
@@ -138,7 +138,7 @@ typedef struct {
   str src_file;
 
   str *buffer;
-  token **tokens;
+  token_t **tokens;
   int current_token_idx;
 
   str *namespace_name;
@@ -151,5 +151,5 @@ typedef struct {
 
 void parser_parse(compilation_unit_t *);
 
-void new_compilation_unit(allocator_t, char *, str *, token **,
+void new_compilation_unit(allocator_t, char *, str *, token_t **,
                           compilation_unit_t *);

@@ -22,6 +22,8 @@ str str_substr(str, uint32_t, uint32_t);
 
 str str_substr_copy(allocator_t, str, uint32_t, uint32_t);
 
+void str_copy(allocator_t allocator, str src, str *dest);
+
 bool str_matches_at_index(str, str, uint32_t);
 
 int str_find_idx_of_nth(uint32_t, str, str);

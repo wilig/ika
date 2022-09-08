@@ -41,6 +41,13 @@ str str_substr_copy(allocator_t allocator, str s, uint32_t starting_idx,
   return (str){.ptr = mem.ptr, .length = length};
 }
 
+void str_copy(allocator_t allocator, str src, str *dest) {
+  char *copy = allocator_alloc_or_exit(allocator, sizeof(char) * src.length);
+  memcpy(copy, src.ptr, src.length);
+  dest->ptr = copy;
+  dest->length = src.length;
+}
+
 char str_get_char(str s, uint32_t pos) {
   if (pos < s.length) {
     return s.ptr[pos];

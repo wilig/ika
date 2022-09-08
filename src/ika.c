@@ -1,5 +1,6 @@
 #include "ika.h"
 #include "allocator.h"
+#include "analyzer.h"
 #include "debug.h"
 #include "hashtbl.h"
 #include "log.h"
@@ -16,7 +17,7 @@ int main(int argc, char **argv) {
   log_init(allocator,
            (logger_configuration){.active_log_level = debug_log_level,
                                   .file_handle = stdout});
-  log_register_type(cstr("token"), tokenize_print_token);
+  log_register_type(cstr("token"), tokenizer_print_token);
   printf("Value of true is %d\n", true);
   printf("Value of false is %d\n", false);
   struct stat info;
@@ -59,9 +60,9 @@ int main(int argc, char **argv) {
   }
   str contents = {.ptr = mem.ptr, .length = read};
   tokenizer_input_stream stream = {.source = contents, .allocator = allocator};
-  token **tokens = tokenize_scan(&stream);
+  token_t **tokens = tokenizer_scan(&stream);
 
-  // token **tokens = tokenize(buffer, info.st_size);
+  // token_t **tokens = tokenize(buffer, info.st_size);
   int i = 0;
   while (tokens[i]->type != ika_eof) {
     log_info("Found {token}\n", tokens[i++]);
@@ -73,5 +74,6 @@ int main(int argc, char **argv) {
                                                  .tokens = tokens,
                                                  .current_token_idx = 0};
   parser_parse(&unit);
+  analyzer_analyze(&unit);
   debug_print_parse_tree(&unit);
 }

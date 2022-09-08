@@ -1,7 +1,11 @@
 
 * DONE Fix parsing
-* TODO Have tokenizer add line/column to tokens
-* TODO Add symbol table logic to parsing
-* HOLD Add semantic analysis
-** HOLD Add type checking
+* DONE Have tokenizer add line/column to tokens
+* DONE Add symbol table logic to parsing
+* TODO operator precedence
+* TODO constant folding?
+* TODO Add semantic analysis
+** TODO prevent assignment to constants
+** TODO prevent using undeclared identifiers
+** TODO Add type checking
 * IDEA Investigate QBE or FASM for backend

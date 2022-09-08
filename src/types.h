@@ -29,6 +29,7 @@ typedef enum {
   ika_int_literal,
   ika_float_literal,
   ika_str_literal,
+  ika_bool_literal,
   __ika_literal_end,
 
   __ika_operators_start,
@@ -123,6 +124,18 @@ static ika_type_map_entry_t ika_base_type_table[] = {
     {.txt = "rune", .type = ika_rune, .label = "rune"},
     {.txt = "void", .type = ika_void, .label = "ika_void"},
     {.txt = "any", .type = ika_any, .label = "ika_any"},
+    // Identifier
+    {.txt = "identifier", .type = ika_identifier, .label = "ika_identifier"},
+    // Literals
+    {.txt = "str literal", .type = ika_str_literal, .label = "ika_str_literal"},
+    {.txt = "num literal", .type = ika_num_literal, .label = "ika_num_literal"},
+    {.txt = "bool literal",
+     .type = ika_bool_literal,
+     .label = "ika_bool_literal"},
+    {.txt = "int literal", .type = ika_int_literal, .label = "ika_int_literal"},
+    {.txt = "float literal",
+     .type = ika_float_literal,
+     .label = "ika_float_literal"},
     // Keywords
     {.txt = "ns", .type = ika_keyword_ns, .label = "ika_keyword_ns"},
     {.txt = "import",
@@ -138,4 +151,5 @@ static ika_type_map_entry_t ika_base_type_table[] = {
      .label = "ika_keyword_return"},
     {.txt = "if", .type = ika_keyword_if, .label = "ika_keyword_if"},
     {.txt = "else", .type = ika_keyword_else, .label = "ika_keyword_else"},
+    {.txt = "eof", .type = ika_eof, .label = "eof"},
 };

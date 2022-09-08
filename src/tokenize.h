@@ -10,10 +10,15 @@
 #define TOKEN_BUCKET_SIZE 1000
 
 typedef struct {
-  uint32_t start_offset;
+    uint32_t line;
+    uint32_t column;
+} token_position_t;
+
+typedef struct {
+  token_position_t position;
   e_ika_type type;
   str value;
-} token;
+} token_t;
 
 typedef struct {
   uint32_t pos;
@@ -21,13 +26,13 @@ typedef struct {
   allocator_t allocator;
 } tokenizer_input_stream;
 
-token **tokenize_scan(tokenizer_input_stream *);
+token_t **tokenizer_scan(tokenizer_input_stream *);
 
 // Debugging stuff
-void tokenize_print_token(FILE *, void *);
+void tokenizer_print_token(FILE *, void *);
 
-str tokenize_get_token_type_label(token *);
+str tokenizer_get_token_type_label(token_t *);
 
-str tokenize_get_token_type_name(e_ika_type);
+str tokenizer_get_token_type_name(e_ika_type);
 
-void tokenize_dump_context(token **, uint32_t);
+void tokenizer_dump_context(token_t **, uint32_t);

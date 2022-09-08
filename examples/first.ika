@@ -7,8 +7,13 @@ let stdout := 1;
 let stderr := 2;
 let stdin  := 0;
 
+let floaty := 1.21;
+
+let truthy := true;
+let falsey := false;
+
 // This should cause an duplicate identifier error
-let stderr := "hello?";
+// let stderr := "hello?";
 
 let weird : u64 = 100 * 340189;
 
@@ -19,8 +24,10 @@ var result := 5 * multiplier;
 
 if(stdout == 1) {
   result = 100;
-// TODO - figure out why the following line makes tokenizing segfault.
+  // This should cause an error because it's const
   weird -= 1000;
+  // This should cause an error because it's undefined
+  undef = 1.1;
 } else {
   result = 200;
 }

@@ -11,6 +11,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+void tokenizer_calculate_position(str source, uint32_t offset,
+                                  token_position_t *position) {
+  int line = 0;
+  int column = 0;
+  for (int x = 0; x < offset; x++) {
+    if (str_get_char(source, x) == '\n') {
+      line++;
+      column = 0;
+    }
+    column++;
+  }
+  position->column = column;
+  position->line = line;
+}
+
 int is_whitespace(tokenizer_input_stream *s) {
   char c = str_get_char(s->source, s->pos);
   if (c == '\t' || c == ' ' || c == '\n') {
@@ -97,22 +112,37 @@ bool is_atomic(tokenizer_input_stream *s) { // Couldn't resist X)
                                                                       : false;
 }
 
+bool is_boolean(tokenizer_input_stream *s) {
+  int current_position = s->pos;
+  if (str_matches_at_index(s->source, cstr("true"), s->pos) ||
+      str_matches_at_index(s->source, cstr("false"), s->pos)) {
+    s->pos += 4;
+    if (str_matches_at_index(s->source, cstr("e"), s->pos))
+      s->pos++;
+    // Handle falsey, trueth named identifiers
+    bool is_part_of_identifier = is_atomic(s);
+    s->pos = current_position;
+    return !is_part_of_identifier;
+  }
+  return false;
+}
+
 bool is_valid_string_escape_character(tokenizer_input_stream *s) {
   char c = current_char(s);
   return c == '\\' || c == 'n' || c == 't' || c == '"' ? true : false;
 }
 
-token *tokenize_new_token(allocator_t allocator) {
-  allocated_memory mem = allocator_alloc(allocator, sizeof(token));
+token_t *tokenize_new_token(allocator_t allocator) {
+  allocated_memory mem = allocator_alloc(allocator, sizeof(token_t));
   if (!mem.valid) {
-    log_error("Failed to allocate memory for token.");
+    log_error("Failed to allocate memory for token_t.");
     exit(-1);
   }
-  token *token = mem.ptr;
+  token_t *token = mem.ptr;
   return token;
 }
 
-void tokenize_string(tokenizer_input_stream *s, token *token) {
+void tokenize_string(tokenizer_input_stream *s, token_t *token) {
   assert(is_string_marker(s));
   int starting_offset = ++s->pos; // Skip the quote
   bool escaped = false;
@@ -131,7 +161,8 @@ void tokenize_string(tokenizer_input_stream *s, token *token) {
     s->pos += 1;
   }
   if (is_string_marker(s)) {
-    token->start_offset = starting_offset + 1;
+    tokenizer_calculate_position(s->source, starting_offset - 1,
+                                 &token->position);
     token->type = ika_str_literal;
     token->value = str_substr_copy(s->allocator, s->source, starting_offset,
                                    s->pos++ - starting_offset);
@@ -143,7 +174,7 @@ void tokenize_string(tokenizer_input_stream *s, token *token) {
   }
 }
 
-void tokenize_comment(tokenizer_input_stream *s, token *token) {
+void tokenize_comment(tokenizer_input_stream *s, token_t *token) {
   assert(is_comment(s));
   int starting_offset = s->pos;
   bool multiline = begins_multiline_comment(s);
@@ -173,90 +204,107 @@ void tokenize_comment(tokenizer_input_stream *s, token *token) {
   if (multiline) {
     s->pos += 1;
   }
-  token->start_offset = starting_offset;
+  tokenizer_calculate_position(s->source, starting_offset, &token->position);
   token->type = ika_comment;
   token->value = str_substr_copy(s->allocator, s->source, starting_offset,
                                  s->pos - starting_offset);
 }
 
-void tokenize_type(tokenizer_input_stream *s, token *token) {
+void tokenize_type(tokenizer_input_stream *s, token_t *token) {
   int type_idx = lookup_ika_type_index(s);
   assert(type_idx > -1);
   int starting_offset = s->pos;
   ika_type_map_entry_t type_entry = ika_base_type_table[type_idx];
-  token->start_offset = starting_offset;
+  tokenizer_calculate_position(s->source, starting_offset, &token->position);
   token->type = type_entry.type;
   token->value =
       str_substr_copy(s->allocator, s->source, s->pos, strlen(type_entry.txt));
-  // Skip past the rest of the token
+  // Skip past the rest of the token_t
   s->pos += strlen(type_entry.txt);
 }
 
 // TODO: rename to scan symbol
-void tokenize_atom(tokenizer_input_stream *s, token *token) {
+void tokenize_atom(tokenizer_input_stream *s, token_t *token) {
   assert(is_atomic(s));
   int starting_offset = s->pos;
   do {
     s->pos++;
   } while (is_atomic(s) && s->pos < s->source.length);
-  token->start_offset = starting_offset;
+  tokenizer_calculate_position(s->source, starting_offset, &token->position);
   token->type = ika_identifier;
   token->value = str_substr_copy(s->allocator, s->source, starting_offset,
                                  s->pos - starting_offset);
 }
 
-void tokenize_numeric(tokenizer_input_stream *s, token *token) {
+void tokenize_numeric(tokenizer_input_stream *s, token_t *token) {
   assert(is_digit_marker(s));
   int starting_offset = s->pos;
   do {
     s->pos++;
   } while (is_numeric(s) && s->pos < s->source.length);
-  token->start_offset = starting_offset;
+  tokenizer_calculate_position(s->source, starting_offset, &token->position);
   token->type = ika_num_literal;
   token->value = str_substr_copy(s->allocator, s->source, starting_offset,
                                  s->pos - starting_offset);
 }
 
-token **tokenize_scan(tokenizer_input_stream *s) {
+void tokenize_boolean(tokenizer_input_stream *s, token_t *token) {
+  assert(is_boolean(s));
+  int starting_offset = s->pos;
+  while (str_get_char(s->source, s->pos - 1) != 'e' &&
+         s->pos < s->source.length) {
+    s->pos++;
+  }
+  tokenizer_calculate_position(s->source, starting_offset, &token->position);
+  token->type = ika_bool_literal;
+  token->value = str_substr_copy(s->allocator, s->source, starting_offset,
+                                 s->pos - starting_offset);
+}
+
+token_t **tokenizer_scan(tokenizer_input_stream *s) {
   allocated_memory mem =
-      allocator_alloc(s->allocator, sizeof(token) * TOKEN_BUCKET_SIZE);
+      allocator_alloc(s->allocator, sizeof(token_t) * TOKEN_BUCKET_SIZE);
   if (!mem.valid) {
-    log_error("Failed to allocate memory from token list");
+    log_error("Failed to allocate memory from token_t list");
     exit(-1);
   }
-  token **tokens = mem.ptr;
+  token_t **tokens = mem.ptr;
   int token_count = 0;
 
   while (s->pos < s->source.length) {
     if (is_comment(s)) {
-      token *token = tokenize_new_token(s->allocator);
+      token_t *token = tokenize_new_token(s->allocator);
       tokenize_comment(s, token);
       tokens[token_count++] = token;
     } else if (is_ika_type(s)) {
-      token *token = tokenize_new_token(s->allocator);
+      token_t *token = tokenize_new_token(s->allocator);
       tokenize_type(s, token);
       tokens[token_count++] = token;
+    } else if (is_boolean(s)) { // Must be checked before atomic/identifier
+      token_t *token = tokenize_new_token(s->allocator);
+      tokenize_boolean(s, token);
+      tokens[token_count++] = token;
     } else if (is_atomic(s)) {
-      token *token = tokenize_new_token(s->allocator);
+      token_t *token = tokenize_new_token(s->allocator);
       tokenize_atom(s, token);
       tokens[token_count++] = token;
     } else if (is_string_marker(s)) {
-      token *token = tokenize_new_token(s->allocator);
+      token_t *token = tokenize_new_token(s->allocator);
       tokenize_string(s, token);
       tokens[token_count++] = token;
     } else if (is_digit_marker(s)) {
-      token *token = tokenize_new_token(s->allocator);
+      token_t *token = tokenize_new_token(s->allocator);
       tokenize_numeric(s, token);
       tokens[token_count++] = token;
     } else {
       s->pos += 1;
     }
     // Allocate blocks of tokens instead of individual tokens.
-    if (mem.size <= sizeof(token *) * token_count) {
+    if (mem.size <= sizeof(token_t *) * token_count) {
       mem = allocator_realloc(s->allocator, mem,
-                              sizeof(token *) * TOKEN_BUCKET_SIZE);
+                              sizeof(token_t *) * TOKEN_BUCKET_SIZE);
       if (!mem.valid) {
-        log_error("Failed to get additional memory for token list");
+        log_error("Failed to get additional memory for token_t list");
         exit(-1);
       } else {
         tokens = mem.ptr;
@@ -264,12 +312,13 @@ token **tokenize_scan(tokenizer_input_stream *s) {
     }
   }
 
-  // If we exhausted all the token space, add one for the eof marker
+  // If we exhausted all the token_t space, add one for the eof marker
   if (token_count % TOKEN_BUCKET_SIZE == 0) {
-    tokens = realloc(tokens, sizeof(token *));
+    tokens = realloc(tokens, sizeof(token_t *));
   }
-  token *eof_token = tokenize_new_token(s->allocator);
-  eof_token->start_offset = s->source.length;
+  token_t *eof_token = tokenize_new_token(s->allocator);
+  tokenizer_calculate_position(s->source, s->source.length,
+                               &eof_token->position);
   eof_token->type = ika_eof;
   tokens[token_count++] = eof_token;
 
@@ -277,7 +326,7 @@ token **tokenize_scan(tokenizer_input_stream *s) {
   return tokens;
 }
 
-str tokenize_get_token_type_label(token *t) {
+str tokenizer_get_token_type_label(token_t *t) {
   uint32_t total_types =
       sizeof(ika_base_type_table) / sizeof(*ika_base_type_table);
   for (int i = 0; i < total_types; i++) {
@@ -288,20 +337,20 @@ str tokenize_get_token_type_label(token *t) {
   return cstr("unknown");
 }
 
-str tokenize_get_token_type_name(e_ika_type type) {
-  uint32_t total_types =
-      sizeof(ika_base_type_table) / sizeof(*ika_base_type_table);
-  for (int i = 0; i < total_types; i++) {
+str tokenizer_get_token_type_name(e_ika_type type) {
+  int i = 0;
+  while (ika_base_type_table[i].type != ika_eof) {
     if (ika_base_type_table[i].type == type) {
       return cstr((char *)ika_base_type_table[i].label);
     }
+    i++;
   }
-  return cstr("unknown");
+  return cstr("type_lookup_failed");
 }
 
-void tokenize_print_token(FILE *out, void *ptr) {
-  token *t = (token *)ptr;
-  fprintf(out, "%s", tokenize_get_token_type_label(t).ptr);
-  fprintf(out, "@%d ", t->start_offset);
+void tokenizer_print_token(FILE *out, void *ptr) {
+  token_t *t = (token_t *)ptr;
+  fprintf(out, "%s", tokenizer_get_token_type_label(t).ptr);
+  fprintf(out, " %d,%d ", t->position.line, t->position.column);
   fprintf(out, "'%.*s'", t->value.length, t->value.ptr);
 }

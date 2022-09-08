@@ -84,43 +84,11 @@ void debug_print_parsed_stmt(compilation_unit_t *unit, stmt_t *stmt) {
   }
 }
 
-void fill_space(int num_spaces) {
-  for (int i = 0; i < num_spaces; i++) {
-    printf(" ");
-  }
-}
-
 void debug_print_parsed_scope(compilation_unit_t *unit, scope_t *scope) {
   printf("\nFILE: %s\n", unit->src_file.ptr);
   printf("SCOPE: %s\n", scope->name.ptr);
   printf("Symbol Table: \n");
-  printf("--------------------------------------------------------------------"
-         "----------\n");
-  printf("| Name                                 | Type               | Line  "
-         "| Column |\n");
-  printf("|--------------------------------------|--------------------|-------"
-         "|--------|\n");
-
-  hashtbl_str_keys_t ht_keys = hashtbl_str_get_keys(scope->symbol_table->table);
-  for (int i = 0; i < ht_keys.count; i++) {
-    symbol_table_entry_t *entry =
-        symbol_table_lookup(scope->symbol_table, *ht_keys.keys[i]);
-    printf("| %.*s", ht_keys.keys[i]->length, ht_keys.keys[i]->ptr);
-    fill_space(37 - ht_keys.keys[i]->length);
-    str type_name = tokenize_get_token_type_name(entry->type);
-    printf("| %s", type_name.ptr);
-    fill_space(19 - type_name.length);
-    printf("| %li", entry->line);
-    fill_space(6 - ((entry->line / 10000) + (entry->line / 1000) +
-                    (entry->line / 100) + (entry->line / 10) + 1));
-    printf("| %li", entry->column);
-    fill_space(7 - ((entry->column / 10000) + (entry->column / 1000) +
-                    (entry->column / 100) + (entry->column / 10) + 1));
-    printf("|\n");
-  }
-  printf("--------------------------------------------------------------------"
-         "----------\n\n");
-
+  symtbl_dump(scope->symbol_table);
   printf("{\n");
   for (int i = 0; i < scope->total_decls; i++) {
     debug_print_parsed_stmt(unit, scope->decls[i]);
