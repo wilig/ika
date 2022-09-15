@@ -7,7 +7,7 @@
 #define DEFAULT_CHUNK_SIZE 128 * 1024
 
 typedef enum {
-  linear_allocator_t,
+  linear_allocator,
 } allocator_type;
 
 typedef struct allocated_memory {
@@ -24,13 +24,19 @@ typedef struct allocator_options {
   linear_allocator_options linear;
 } allocator_options;
 
-typedef struct linear_allocator {
-  uint8_t *bucket_o_mem;
-  uint64_t chunk_size;
+typedef struct allocator_memory_chunk_t {
+  uint8_t *mem_ptr;
   uint64_t capacity;
   uint64_t free_space;
   bool valid;
-} linear_allocator;
+  struct allocator_memory_chunk_t *next;
+} allocator_memory_chunk_t;
+
+typedef struct linear_allocator_t {
+  allocator_memory_chunk_t *head;
+  allocator_memory_chunk_t *current_chunk;
+  uint64_t chunk_size;
+} linear_allocator_t;
 
 typedef struct allocator_t {
   void *allocator_internals;

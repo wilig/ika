@@ -2,6 +2,7 @@
 #include "allocator.h"
 #include "analyzer.h"
 #include "debug.h"
+#include "dynarray.h"
 #include "hashtbl.h"
 #include "log.h"
 #include "parser.h"
@@ -13,7 +14,23 @@
 
 int main(int argc, char **argv) {
   allocator_t allocator =
-      allocator_init(linear_allocator_t, (allocator_options){0});
+      allocator_init(linear_allocator, (allocator_options){0});
+  int *y1;
+  for (int i = 0; i < 100000; i++) {
+    y1 = (int *)allocator_alloc_or_exit(allocator, sizeof(int));
+    *y1 = i;
+  }
+  printf("y1: eq %d and points to %p\n", *y1, y1);
+
+  dynarray *test = dynarray_init(allocator, sizeof(size_t));
+  printf("ika: dynarray.count: %li\n", test->count);
+  for (int x = 0; x < 100000; x++) {
+    dynarray_append(test, &x);
+  }
+  assert(1000 == test->count);
+  assert(5 == *(int *)dynarray_get(test, 5));
+  assert(9999 == *(int *)dynarray_pop_owned_element(test));
+  dynarray_deinit(test);
   log_init(allocator,
            (logger_configuration){.active_log_level = debug_log_level,
                                   .file_handle = stdout});
