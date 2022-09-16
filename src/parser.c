@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "allocator.h"
+#include "dynarray.h"
 #include "hashtbl.h"
 #include "log.h"
 #include "symtbl.h"
@@ -24,7 +25,7 @@ void parse_expression(compilation_unit_t *, expr_t *);
 void parse_simple_expression(compilation_unit_t *, expr_t *);
 
 token_t *get_token(compilation_unit_t *unit) {
-  return unit->tokens[unit->current_token_idx++];
+  return dynarray_get(unit->tokens, unit->current_token_idx++);
 }
 
 void rewind_tokens(compilation_unit_t *unit, int i) {
@@ -36,11 +37,11 @@ void skip_tokens(compilation_unit_t *unit, int i) {
 }
 
 token_t *peek_current_token(compilation_unit_t *unit) {
-  return unit->tokens[unit->current_token_idx];
+  return dynarray_get(unit->tokens, unit->current_token_idx);
 }
 
 token_t *peek_next_token(compilation_unit_t *unit) {
-  return unit->tokens[unit->current_token_idx + 1];
+  return dynarray_get(unit->tokens, unit->current_token_idx + 1);
 }
 
 bool a_colon(e_ika_type type) { return type == ika_colon; }
@@ -153,8 +154,8 @@ void parse_simple_expression(compilation_unit_t *unit, expr_t *expr) {
     parse_identifier(unit, expr);
   } else {
     printf(
-            "Was expecting a literal, identifer, or binary expression got a %s\n",
-            tokenizer_get_token_type_label(token).ptr);
+        "Was expecting a literal, identifer, or binary expression got a %s\n",
+        tokenizer_get_token_type_label(token).ptr);
     assert(false);
   }
 }
@@ -235,12 +236,12 @@ void parse_let_stmt(compilation_unit_t *unit, stmt_t *stmt) {
     exit(-1);
   }
   // Insert constant identifier into symbol table
-    symtbl_insert(unit->current_scope->symbol_table,
-                  stmt->let_statement.identifier->value,
-                  stmt->let_statement.explicit_type == NULL
-                  ? ika_unknown
-                  : stmt->let_statement.explicit_type->type,
-                  true, let_token->position.line, let_token->position.column);
+  symtbl_insert(unit->current_scope->symbol_table,
+                stmt->let_statement.identifier->value,
+                stmt->let_statement.explicit_type == NULL
+                    ? ika_unknown
+                    : stmt->let_statement.explicit_type->type,
+                true, let_token->position.line, let_token->position.column);
 }
 
 void parse_var_stmt(compilation_unit_t *unit, stmt_t *stmt) {
@@ -277,12 +278,12 @@ void parse_var_stmt(compilation_unit_t *unit, stmt_t *stmt) {
     exit(-1);
   }
   // Insert variable identifier into symbol table
-    symtbl_insert(unit->current_scope->symbol_table,
-                  stmt->var_statement.identifier->value,
-                  stmt->var_statement.explicit_type == NULL
-                  ? ika_unknown
-                  : stmt->var_statement.explicit_type->type,
-                  false, var_token->position.line, var_token->position.column);
+  symtbl_insert(unit->current_scope->symbol_table,
+                stmt->var_statement.identifier->value,
+                stmt->var_statement.explicit_type == NULL
+                    ? ika_unknown
+                    : stmt->var_statement.explicit_type->type,
+                false, var_token->position.line, var_token->position.column);
 }
 
 void parse_if_stmt(compilation_unit_t *unit, stmt_t *stmt) {
@@ -337,7 +338,7 @@ scope_t *parse_scope(compilation_unit_t *unit, str name) {
   }
   scope->decls = decls_mem.ptr;
   while (peek_current_token(unit)->type != ika_brace_close &&
-         peek_current_token(unit)->type != ika_eof) {
+         unit->current_token_idx < unit->tokens->count) {
     switch (peek_current_token(unit)->type) {
     case ika_keyword_let: {
       printf("Parsing let statement\n");
@@ -431,7 +432,7 @@ void new_scope(allocator_t allocator, str name, scope_t *parent_scope,
 }
 
 void new_compilation_unit(allocator_t allocator, char *filename, str *buffer,
-                          token_t **tokens, compilation_unit_t *unit) {
+                          dynarray *tokens, compilation_unit_t *unit) {
   allocated_memory mem = allocator_alloc(allocator, sizeof(scope_t));
   if (!mem.valid) {
     log_error("Failed to allocate memory, bailing..");

@@ -13,7 +13,6 @@ dynarray *dynarray_init(allocator_t allocator, size_t element_size) {
   dynarray *array = allocator_alloc_or_exit(allocator, sizeof(dynarray));
   void *storage = allocator_alloc_or_exit(
       allocator, element_size * DYNARRAY_DEFAULT_CHUNK_SIZE);
-  printf("dynarray_init: base array points to %p\n", array);
   array->allocator = allocator;
   array->element_size = element_size;
   array->capacity = DYNARRAY_DEFAULT_CHUNK_SIZE;
@@ -21,57 +20,43 @@ dynarray *dynarray_init(allocator_t allocator, size_t element_size) {
   array->chunk_size = DYNARRAY_DEFAULT_CHUNK_SIZE;
   array->storage = storage;
 
-  printf("dynarray_init: count: %li\n", array->count);
-  printf("dynarray_init: memory ptr: %p\n", array->storage);
-  printf("dynarray_init: count: %li\n", array->count);
   return array;
 }
 
+// Frees all the memory associated with the array.
 void dynarray_deinit(dynarray *array) {
   allocator_free(array->allocator, array->storage);
   allocator_free(array->allocator, array);
 }
 
+// Adds a copy of the element parameter to the end of the array
 void dynarray_append(dynarray *array, void *element) {
-  if (array->count + 1 < array->capacity) {
-    void *storage = array->storage;
-    //   memcpy(storage + (array->element_size * array->count), element,
-    //          array->element_size);
+  if (array->count < array->capacity) {
+    int8_t *storage = array->storage;
+    int8_t *storage_location = (storage + (array->element_size * array->count));
+    memcpy(storage_location, element, array->element_size);
     array->count += 1;
-    printf("dynarray_append: array->capacity: %li\n", array->capacity);
-    printf("dynarray_append: after memcpy array->count: %li\n", array->count);
   } else {
-    printf(
-        "BEFORE REALLOC:\n------------------------------------------------\n");
-    printf("array points to %p\n", array);
-    printf("array->storage points to %p\n", array->storage);
-    printf("array->capacity before realloc: %li\n", array->capacity);
-    printf("array->count before realloc: %li\n", array->count);
-    printf("array->element_size before realloc: %li\n", array->element_size);
-    printf("array->chunk_size before realloc: %li\n", array->chunk_size);
-
-    array->storage = allocator_alloc_or_exit(
-        array->allocator,
-        array->capacity + array->element_size * DYNARRAY_DEFAULT_CHUNK_SIZE);
+    // When we run out of capacity, we allocate addition space based on current
+    // usage plus our default chunk size.  We then copy the from the old
+    // storage to the new storage.
+    uint64_t bytes_to_allocate =
+        (array->capacity + DYNARRAY_DEFAULT_CHUNK_SIZE) * array->element_size;
+    void *previous_storage = array->storage;
+    array->storage =
+        allocator_alloc_or_exit(array->allocator, bytes_to_allocate);
     array->capacity += DYNARRAY_DEFAULT_CHUNK_SIZE;
-    printf(
-        "AFTER REALLOC:\n------------------------------------------------\n");
-    printf("array points to %p\n", array);
-    printf("array->storage points to %p\n", array->storage);
-    printf("array->capacity after realloc: %li\n", array->capacity);
-    printf("array->count after realloc: %li\n", array->count);
-    printf("array->element_size after realloc: %li\n", array->element_size);
-    printf("array->chunk_size after realloc: %li\n", array->chunk_size);
-
+    memcpy(array->storage, previous_storage, bytes_to_allocate);
     if (array->storage == NULL) {
       printf("dynarray expansion failed\n");
       exit(-2);
     }
-    printf("Calling append again\n");
     return dynarray_append(array, element);
   }
 }
 
+// Returns a pointer to the element in the array.  You must cast the pointer
+// to the appropriate type.
 void *dynarray_get(dynarray *array, int slot) {
   if (slot < array->capacity) {
     return (void *)(array->storage + (array->element_size * slot));
@@ -79,17 +64,22 @@ void *dynarray_get(dynarray *array, int slot) {
   return NULL;
 }
 
+// Copies the element parameter and overwrites the element in the
+// specified position.
 void dynarray_put(dynarray *array, int slot, void *element) {
   if (slot < array->capacity) {
-    //    memcpy(array->storage + (array->element_size * slot), element,
-    //           array->element_size);
+    memcpy(array->storage + (array->element_size * slot), element,
+           array->element_size);
   }
 }
 
+// Synonym for append
 void dynarray_push(dynarray *array, void *element) {
   dynarray_append(array, element);
 }
 
+// Removes the last element from the array, and returns it.  Caller
+// is responsible for freeing the memory.
 void *dynarray_pop_owned_element(dynarray *array) {
   void *element =
       allocator_alloc_or_exit(array->allocator, array->element_size);

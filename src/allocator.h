@@ -25,7 +25,7 @@ typedef struct allocator_options {
 } allocator_options;
 
 typedef struct allocator_memory_chunk_t {
-  uint8_t *mem_ptr;
+  void *mem_ptr;
   uint64_t capacity;
   uint64_t free_space;
   bool valid;

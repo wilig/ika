@@ -13,7 +13,8 @@ typedef enum log_level {
   debug_log_level,
   info_log_level,
   warn_log_level,
-  error_log_level
+  error_log_level,
+  fatal_log_level,
 } log_level;
 
 typedef struct logger_configuration {
@@ -27,6 +28,7 @@ void log_debug(char *, ...);
 void log_info(char *, ...);
 void log_warn(char *, ...);
 void log_error(char *, ...);
+void log_fatal(char *, ...);
 
 void log_init(allocator_t, logger_configuration);
 void log_deinit();

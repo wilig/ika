@@ -1,6 +1,7 @@
 #include "tokenize.h"
 #include "allocator.h"
 #include "defines.h"
+#include "dynarray.h"
 #include "errors.h"
 #include "log.h"
 #include "str.h"
@@ -11,19 +12,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-void tokenizer_calculate_position(str source, uint32_t offset,
-                                  token_position_t *position) {
+static token_position_t tokenizer_calculate_position(str source,
+                                                     uint32_t offset) {
   int line = 0;
   int column = 0;
   for (int x = 0; x < offset; x++) {
     if (str_get_char(source, x) == '\n') {
       line++;
       column = 0;
+    } else {
+      column++;
     }
-    column++;
   }
-  position->column = column;
-  position->line = line;
+  return (token_position_t){.column = column, .line = line};
+  // position->column = column;
+  // position->line = line;
 }
 
 int is_whitespace(tokenizer_input_stream *s) {
@@ -66,38 +69,38 @@ int lookup_ika_type_index(tokenizer_input_stream *s) {
   return matched_type;
 }
 
-char current_char(tokenizer_input_stream *s) {
+static char current_char(tokenizer_input_stream *s) {
   return str_get_char(s->source, s->pos);
 }
 
-bool is_ika_type(tokenizer_input_stream *s) {
+static bool is_ika_type(tokenizer_input_stream *s) {
   return lookup_ika_type_index(s) != -1 ? true : false;
 }
 
-bool is_string_marker(tokenizer_input_stream *s) {
+static bool is_string_marker(tokenizer_input_stream *s) {
   char c = str_get_char(s->source, s->pos);
   return c == '"' ? true : false;
 }
 
-bool is_comment(tokenizer_input_stream *s) {
+static bool is_comment(tokenizer_input_stream *s) {
   return str_matches_at_index(s->source, cstr("//"), s->pos) ||
          str_matches_at_index(s->source, cstr("/*"), s->pos);
 }
 
-bool begins_multiline_comment(tokenizer_input_stream *s) {
+static bool begins_multiline_comment(tokenizer_input_stream *s) {
   return str_matches_at_index(s->source, cstr("/*"), s->pos);
 }
 
-bool ends_multiline_comment(tokenizer_input_stream *s) {
+static bool ends_multiline_comment(tokenizer_input_stream *s) {
   return str_matches_at_index(s->source, cstr("*/"), s->pos);
 }
 
-bool is_digit_marker(tokenizer_input_stream *s) {
+static bool is_digit_marker(tokenizer_input_stream *s) {
   char c = current_char(s);
   return c >= '0' && c <= '9' ? true : false;
 }
 
-bool is_numeric(tokenizer_input_stream *s) {
+static bool is_numeric(tokenizer_input_stream *s) {
   char c = current_char(s);
   return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
                  (c >= 'A' && c <= 'F') || c == 'x' || c == 'o' || c == '.' ||
@@ -106,13 +109,13 @@ bool is_numeric(tokenizer_input_stream *s) {
              : false;
 }
 
-bool is_atomic(tokenizer_input_stream *s) { // Couldn't resist X)
+static bool is_atomic(tokenizer_input_stream *s) { // Couldn't resist X)
   char c = current_char(s);
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' ? true
                                                                       : false;
 }
 
-bool is_boolean(tokenizer_input_stream *s) {
+static bool is_boolean(tokenizer_input_stream *s) {
   int current_position = s->pos;
   if (str_matches_at_index(s->source, cstr("true"), s->pos) ||
       str_matches_at_index(s->source, cstr("false"), s->pos)) {
@@ -127,22 +130,17 @@ bool is_boolean(tokenizer_input_stream *s) {
   return false;
 }
 
-bool is_valid_string_escape_character(tokenizer_input_stream *s) {
+static bool is_valid_string_escape_character(tokenizer_input_stream *s) {
   char c = current_char(s);
   return c == '\\' || c == 'n' || c == 't' || c == '"' ? true : false;
 }
 
-token_t *tokenize_new_token(allocator_t allocator) {
-  allocated_memory mem = allocator_alloc(allocator, sizeof(token_t));
-  if (!mem.valid) {
-    log_error("Failed to allocate memory for token_t.");
-    exit(-1);
-  }
-  token_t *token = mem.ptr;
-  return token;
+static str tokenizer_extract_value(tokenizer_input_stream *s, uint32_t start,
+                                   uint32_t end) {
+  return str_substr_copy(s->allocator, s->source, start, end - start);
 }
 
-void tokenize_string(tokenizer_input_stream *s, token_t *token) {
+static token_t tokenize_string(tokenizer_input_stream *s) {
   assert(is_string_marker(s));
   int starting_offset = ++s->pos; // Skip the quote
   bool escaped = false;
@@ -161,11 +159,11 @@ void tokenize_string(tokenizer_input_stream *s, token_t *token) {
     s->pos += 1;
   }
   if (is_string_marker(s)) {
-    tokenizer_calculate_position(s->source, starting_offset - 1,
-                                 &token->position);
-    token->type = ika_str_literal;
-    token->value = str_substr_copy(s->allocator, s->source, starting_offset,
-                                   s->pos++ - starting_offset);
+    return (token_t){
+        .type = ika_str_literal,
+        .value = tokenizer_extract_value(s, starting_offset, s->pos++),
+        .position =
+            tokenizer_calculate_position(s->source, starting_offset - 1)};
   } else {
     displayCompilerError(s->source.ptr, s->pos,
                          "Reached EOF before string termination.",
@@ -174,7 +172,7 @@ void tokenize_string(tokenizer_input_stream *s, token_t *token) {
   }
 }
 
-void tokenize_comment(tokenizer_input_stream *s, token_t *token) {
+static token_t tokenize_comment(tokenizer_input_stream *s) {
   assert(is_comment(s));
   int starting_offset = s->pos;
   bool multiline = begins_multiline_comment(s);
@@ -204,125 +202,93 @@ void tokenize_comment(tokenizer_input_stream *s, token_t *token) {
   if (multiline) {
     s->pos += 1;
   }
-  tokenizer_calculate_position(s->source, starting_offset, &token->position);
-  token->type = ika_comment;
-  token->value = str_substr_copy(s->allocator, s->source, starting_offset,
-                                 s->pos - starting_offset);
+  return (token_t){
+      .type = ika_comment,
+      .value = tokenizer_extract_value(s, starting_offset, s->pos),
+      .position = tokenizer_calculate_position(s->source, starting_offset)};
 }
 
-void tokenize_type(tokenizer_input_stream *s, token_t *token) {
+static token_t tokenize_type(tokenizer_input_stream *s) {
   int type_idx = lookup_ika_type_index(s);
   assert(type_idx > -1);
   int starting_offset = s->pos;
   ika_type_map_entry_t type_entry = ika_base_type_table[type_idx];
-  tokenizer_calculate_position(s->source, starting_offset, &token->position);
-  token->type = type_entry.type;
-  token->value =
-      str_substr_copy(s->allocator, s->source, s->pos, strlen(type_entry.txt));
+  token_t token = {
+      .type = type_entry.type,
+      .value = tokenizer_extract_value(
+          s, starting_offset, starting_offset + strlen(type_entry.txt)),
+      .position = tokenizer_calculate_position(s->source, starting_offset)};
   // Skip past the rest of the token_t
   s->pos += strlen(type_entry.txt);
+  return token;
 }
 
 // TODO: rename to scan symbol
-void tokenize_atom(tokenizer_input_stream *s, token_t *token) {
+static token_t tokenize_atom(tokenizer_input_stream *s) {
   assert(is_atomic(s));
   int starting_offset = s->pos;
   do {
     s->pos++;
   } while (is_atomic(s) && s->pos < s->source.length);
-  tokenizer_calculate_position(s->source, starting_offset, &token->position);
-  token->type = ika_identifier;
-  token->value = str_substr_copy(s->allocator, s->source, starting_offset,
-                                 s->pos - starting_offset);
+  return (token_t){
+      .type = ika_identifier,
+      .value = tokenizer_extract_value(s, starting_offset, s->pos),
+      .position = tokenizer_calculate_position(s->source, starting_offset)};
 }
 
-void tokenize_numeric(tokenizer_input_stream *s, token_t *token) {
+static token_t tokenize_numeric(tokenizer_input_stream *s) {
   assert(is_digit_marker(s));
   int starting_offset = s->pos;
   do {
     s->pos++;
   } while (is_numeric(s) && s->pos < s->source.length);
-  tokenizer_calculate_position(s->source, starting_offset, &token->position);
-  token->type = ika_num_literal;
-  token->value = str_substr_copy(s->allocator, s->source, starting_offset,
-                                 s->pos - starting_offset);
+  return (token_t){
+      .type = ika_num_literal,
+      .position = tokenizer_calculate_position(s->source, starting_offset),
+      .value = tokenizer_extract_value(s, starting_offset, s->pos)};
 }
 
-void tokenize_boolean(tokenizer_input_stream *s, token_t *token) {
+static token_t tokenize_boolean(tokenizer_input_stream *s) {
   assert(is_boolean(s));
-  int starting_offset = s->pos;
+  uint32_t starting_offset = s->pos;
   while (str_get_char(s->source, s->pos - 1) != 'e' &&
          s->pos < s->source.length) {
     s->pos++;
   }
-  tokenizer_calculate_position(s->source, starting_offset, &token->position);
-  token->type = ika_bool_literal;
-  token->value = str_substr_copy(s->allocator, s->source, starting_offset,
-                                 s->pos - starting_offset);
+  return (token_t){
+      .type = ika_bool_literal,
+      .position = tokenizer_calculate_position(s->source, starting_offset),
+      .value = tokenizer_extract_value(s, starting_offset, s->pos)};
 }
 
-token_t **tokenizer_scan(tokenizer_input_stream *s) {
-  allocated_memory mem =
-      allocator_alloc(s->allocator, sizeof(token_t) * TOKEN_BUCKET_SIZE);
-  if (!mem.valid) {
-    log_error("Failed to allocate memory from token_t list");
-    exit(-1);
-  }
-  token_t **tokens = mem.ptr;
-  int token_count = 0;
+dynarray *tokenizer_scan(tokenizer_input_stream *s) {
+  dynarray *tokens = dynarray_init(s->allocator, sizeof(token_t));
 
   while (s->pos < s->source.length) {
     if (is_comment(s)) {
-      token_t *token = tokenize_new_token(s->allocator);
-      tokenize_comment(s, token);
-      tokens[token_count++] = token;
+      token_t token = tokenize_comment(s);
+      dynarray_append(tokens, &token);
     } else if (is_ika_type(s)) {
-      token_t *token = tokenize_new_token(s->allocator);
-      tokenize_type(s, token);
-      tokens[token_count++] = token;
+      token_t token = tokenize_type(s);
+      dynarray_append(tokens, &token);
     } else if (is_boolean(s)) { // Must be checked before atomic/identifier
-      token_t *token = tokenize_new_token(s->allocator);
-      tokenize_boolean(s, token);
-      tokens[token_count++] = token;
+      token_t token = tokenize_boolean(s);
+      dynarray_append(tokens, &token);
     } else if (is_atomic(s)) {
-      token_t *token = tokenize_new_token(s->allocator);
-      tokenize_atom(s, token);
-      tokens[token_count++] = token;
+      token_t token = tokenize_atom(s);
+      dynarray_append(tokens, &token);
     } else if (is_string_marker(s)) {
-      token_t *token = tokenize_new_token(s->allocator);
-      tokenize_string(s, token);
-      tokens[token_count++] = token;
+      token_t token = tokenize_string(s);
+      dynarray_append(tokens, &token);
     } else if (is_digit_marker(s)) {
-      token_t *token = tokenize_new_token(s->allocator);
-      tokenize_numeric(s, token);
-      tokens[token_count++] = token;
+      token_t token = tokenize_numeric(s);
+      dynarray_append(tokens, &token);
     } else {
       s->pos += 1;
     }
-    // Allocate blocks of tokens instead of individual tokens.
-    if (mem.size <= sizeof(token_t *) * token_count) {
-      mem = allocator_realloc(s->allocator, mem,
-                              sizeof(token_t *) * TOKEN_BUCKET_SIZE);
-      if (!mem.valid) {
-        log_error("Failed to get additional memory for token_t list");
-        exit(-1);
-      } else {
-        tokens = mem.ptr;
-      }
-    }
   }
 
-  // If we exhausted all the token_t space, add one for the eof marker
-  if (token_count % TOKEN_BUCKET_SIZE == 0) {
-    tokens = realloc(tokens, sizeof(token_t *));
-  }
-  token_t *eof_token = tokenize_new_token(s->allocator);
-  tokenizer_calculate_position(s->source, s->source.length,
-                               &eof_token->position);
-  eof_token->type = ika_eof;
-  tokens[token_count++] = eof_token;
-
-  printf("Done tokenizing, found %d tokens.\n", token_count);
+  printf("Done tokenizing, found %li tokens.\n", tokens->count);
   return tokens;
 }
 
@@ -351,6 +317,6 @@ str tokenizer_get_token_type_name(e_ika_type type) {
 void tokenizer_print_token(FILE *out, void *ptr) {
   token_t *t = (token_t *)ptr;
   fprintf(out, "%s", tokenizer_get_token_type_label(t).ptr);
-  fprintf(out, " %d,%d ", t->position.line, t->position.column);
+  fprintf(out, " %d,%d ", t->position.column, t->position.line);
   fprintf(out, "'%.*s'", t->value.length, t->value.ptr);
 }

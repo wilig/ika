@@ -7,9 +7,12 @@
 
 static allocator_memory_chunk_t *
 linear_allocator_new_chunk(uint64_t amount_to_alloc) {
+  printf("\n\n############################# allocating new chunk: %li bytes\n",
+         amount_to_alloc);
   allocator_memory_chunk_t *new_chunk =
       calloc(sizeof(allocator_memory_chunk_t), 1);
-  uint8_t *mem_ptr = calloc(amount_to_alloc, 1);
+  int8_t *mem_ptr = calloc(amount_to_alloc, 1);
+  printf("Memory range: %p - %p\n\n", mem_ptr, mem_ptr + amount_to_alloc);
   if (new_chunk != NULL && mem_ptr != NULL) { // Success
     new_chunk->mem_ptr = mem_ptr;
     new_chunk->valid = true;
@@ -30,8 +33,11 @@ allocated_memory linear_allocator_alloc(allocator_t allocator,
     allocator_memory_chunk_t *chunk = la->current_chunk;
 
     // Handle overflow
+    printf("bytes to alloc: %li\n", bytes_to_alloc);
     if (bytes_to_alloc > chunk->free_space) {
-      chunk = linear_allocator_new_chunk(la->chunk_size);
+      chunk = bytes_to_alloc > la->chunk_size
+                  ? linear_allocator_new_chunk(bytes_to_alloc)
+                  : linear_allocator_new_chunk(la->chunk_size);
       if (chunk != NULL) {
         la->current_chunk->next = chunk;
         la->current_chunk = chunk;
@@ -40,6 +46,8 @@ allocated_memory linear_allocator_alloc(allocator_t allocator,
       }
     }
     void *ptr = chunk->mem_ptr + (chunk->capacity - chunk->free_space);
+    // Clear the memory
+    memset(ptr, 0x0, bytes_to_alloc);
     chunk->free_space -= bytes_to_alloc;
 
     return (allocated_memory){
@@ -131,8 +139,8 @@ allocated_memory allocator_realloc(allocator_t allocator, allocated_memory mem,
 void *allocator_alloc_or_exit(allocator_t allocator, uint64_t bytes_to_alloc) {
   allocated_memory mem = allocator_alloc(allocator, bytes_to_alloc);
   if (!mem.valid) {
-    log_error("Failed to allocate memory, so exiting according to contract.");
-    exit(-1);
+    log_fatal("Failed to allocate {u64} bytes of memory, exiting.",
+              bytes_to_alloc);
   }
   return mem.ptr;
 }

@@ -4,6 +4,7 @@
 #include <sys/types.h>
 
 #include "allocator.h"
+#include "dynarray.h"
 #include "hashtbl.h"
 #include "symtbl.h"
 #include "tokenize.h"
@@ -138,7 +139,7 @@ typedef struct {
   str src_file;
 
   str *buffer;
-  token_t **tokens;
+  dynarray *tokens;
   int current_token_idx;
 
   str *namespace_name;
@@ -151,5 +152,5 @@ typedef struct {
 
 void parser_parse(compilation_unit_t *);
 
-void new_compilation_unit(allocator_t, char *, str *, token_t **,
+void new_compilation_unit(allocator_t, char *, str *, dynarray *,
                           compilation_unit_t *);

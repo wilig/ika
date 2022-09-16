@@ -22,7 +22,10 @@ void output_char_impl(FILE *stream, char *s) {
   output_str_impl(stream, cstr(s));
 }
 
-void handle_integer(FILE *stream, size_t i) { fprintf(stream, "%li", i); }
+void handle_unsigned_integer(FILE *stream, uint64_t i) {
+  // TODO:  Implement output free of printf
+  fprintf(stream, "%li", i);
+}
 
 void _log_print_interpolated_str(FILE *stream, char *fmt, va_list args) {
   str format = cstr(fmt);
@@ -46,8 +49,9 @@ void _log_print_interpolated_str(FILE *stream, char *fmt, va_list args) {
         output(stream, va_arg(args, str));
       } else if (str_eq(type_t, cstr("c*"))) {
         output(stream, va_arg(args, char *));
-      } else if (str_eq(type_t, cstr("d"))) {
-        handle_integer(stream, va_arg(args, size_t));
+      } else if (str_eq(type_t, cstr("u64")) || str_eq(type_t, cstr("u32")) ||
+                 str_eq(type_t, cstr("u16")) || str_eq(type_t, cstr("u8"))) {
+        handle_unsigned_integer(stream, va_arg(args, size_t));
       } else {
         hashtbl_str_t *type_lookup_table = get_type_lookup_table();
         str_entry_t *entry = hashtbl_str_lookup(type_lookup_table, type_t);
@@ -95,6 +99,9 @@ void log_set_color(FILE *stream, log_level level) {
     case error_log_level:
       output_str_impl(stream, ANSI_ESCAPE_RED);
       break;
+    case fatal_log_level:
+      output_str_impl(stream, ANSI_ESCAPE_RED);
+      break;
     }
   }
 }
@@ -127,6 +134,9 @@ void log_do_log_entry(logger_configuration logger, log_level level, char *fmt,
     break;
   case error_log_level:
     output(logger.file_handle, "ERROR: ");
+    break;
+  case fatal_log_level:
+    output(logger.file_handle, "FATAL: ");
     break;
   }
   log_reset_color(logger.file_handle);
@@ -167,6 +177,14 @@ void log_error(char *format, ...) {
     log_do_log_entry(__LOGGER_CONFIG, error_log_level, format, arg_pointer);
     va_end(arg_pointer);
   }
+}
+
+void log_fatal(char *format, ...) {
+  va_list arg_pointer;
+  va_start(arg_pointer, format);
+  log_do_log_entry(__LOGGER_CONFIG, fatal_log_level, format, arg_pointer);
+  va_end(arg_pointer);
+  exit(-1);
 }
 
 void log_init(allocator_t allocator, logger_configuration options) {

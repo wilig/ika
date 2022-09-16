@@ -2,6 +2,7 @@
 
 #include "allocator.h"
 #include "defines.h"
+#include "dynarray.h"
 #include "str.h"
 #include "types.h"
 
@@ -10,8 +11,8 @@
 #define TOKEN_BUCKET_SIZE 1000
 
 typedef struct {
-    uint32_t line;
-    uint32_t column;
+  uint32_t line;
+  uint32_t column;
 } token_position_t;
 
 typedef struct {
@@ -26,7 +27,8 @@ typedef struct {
   allocator_t allocator;
 } tokenizer_input_stream;
 
-token_t **tokenizer_scan(tokenizer_input_stream *);
+// An array of tokens
+dynarray *tokenizer_scan(tokenizer_input_stream *);
 
 // Debugging stuff
 void tokenizer_print_token(FILE *, void *);

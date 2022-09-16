@@ -15,22 +15,6 @@
 int main(int argc, char **argv) {
   allocator_t allocator =
       allocator_init(linear_allocator, (allocator_options){0});
-  int *y1;
-  for (int i = 0; i < 100000; i++) {
-    y1 = (int *)allocator_alloc_or_exit(allocator, sizeof(int));
-    *y1 = i;
-  }
-  printf("y1: eq %d and points to %p\n", *y1, y1);
-
-  dynarray *test = dynarray_init(allocator, sizeof(size_t));
-  printf("ika: dynarray.count: %li\n", test->count);
-  for (int x = 0; x < 100000; x++) {
-    dynarray_append(test, &x);
-  }
-  assert(1000 == test->count);
-  assert(5 == *(int *)dynarray_get(test, 5));
-  assert(9999 == *(int *)dynarray_pop_owned_element(test));
-  dynarray_deinit(test);
   log_init(allocator,
            (logger_configuration){.active_log_level = debug_log_level,
                                   .file_handle = stdout});
@@ -72,24 +56,26 @@ int main(int argc, char **argv) {
   long read = fread(mem.ptr, sizeof(uint8_t), info.st_size, fh);
   if (read != info.st_size) {
     log_error("Failed to read complete file, expected {l} bytes, read {l} "
-              "bytes.\nCowardly bailing out.\n",
+              "bytes.\nBailing out.\n",
               info.st_size, read);
   }
   str contents = {.ptr = mem.ptr, .length = read};
   tokenizer_input_stream stream = {.source = contents, .allocator = allocator};
-  token_t **tokens = tokenizer_scan(&stream);
+  dynarray *tokens = tokenizer_scan(&stream);
 
-  // token_t **tokens = tokenize(buffer, info.st_size);
-  int i = 0;
-  while (tokens[i]->type != ika_eof) {
-    log_info("Found {token}\n", tokens[i++]);
+  for (int x = 0; x < tokens->count; x++) {
+    log_info("Found {token}\n", dynarray_get(tokens, x));
   }
-  log_info("Moving to parsing phase\n");
+  // token_t **tokens = tokenize(buffer, info.st_size);
+  // int i = 0;
+  // while (tokens[i]->type != ika_eof) {
+  //  log_info("Found {token}\n", tokens[i++]);
+  //}
+  // log_info("Moving to parsing phase\n");
   compilation_unit_t unit = (compilation_unit_t){.src_file = {argv[1]},
                                                  .allocator = allocator,
                                                  .buffer = &contents,
-                                                 .tokens = tokens,
-                                                 .current_token_idx = 0};
+                                                 .tokens = tokens};
   parser_parse(&unit);
   analyzer_analyze(&unit);
   debug_print_parse_tree(&unit);
