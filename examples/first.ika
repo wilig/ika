@@ -16,6 +16,9 @@ let falsey := false;
 // let stderr := "hello?";
 
 let weird : u64 = 100 * 340189;
+let simple_precedence := 5 + 10 * 2 / 5;
+//let my_int := ((7 + 10) * 30) - 100);
+// let paren_precendence := (5 + 10) * 2 / 5;
 
 var name := "This is a string for the name var";
 var multiplier := 100;
@@ -31,7 +34,6 @@ if(stdout == 1) {
 } else {
   result = 200;
 }
-
 
 
 

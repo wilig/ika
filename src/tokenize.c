@@ -25,38 +25,23 @@ static token_position_t tokenizer_calculate_position(str source,
     }
   }
   return (token_position_t){.column = column, .line = line};
-  // position->column = column;
-  // position->line = line;
 }
 
-int is_whitespace(tokenizer_input_stream *s) {
+static int is_newline(tokenizer_input_stream *s) {
   char c = str_get_char(s->source, s->pos);
-  if (c == '\t' || c == ' ' || c == '\n') {
-    return true;
-  };
-  return false;
-}
-
-int is_newline(tokenizer_input_stream *s) {
-  char c = str_get_char(s->source, s->pos);
-  if (c == '\n') {
-    return true;
-  } else {
-    return false;
-  }
+  return (c == '\n');
 }
 
 // This is quite slow and will probably be a major bottleneck,
 // but get it to work fist, then make it fast.
 // Returns the largest type str that matches input.  So ':=' is a better match
 // then ':'.
-int lookup_ika_type_index(tokenizer_input_stream *s) {
+static int lookup_ika_type_index(tokenizer_input_stream *s) {
   uint32_t size = sizeof(ika_base_type_table) / sizeof(*ika_base_type_table);
   uint32_t matched_type = -1;
   uint32_t largested_matched_type_str_len = 0;
   for (uint32_t i = 0; i < size; i++) {
     str type = cstr((char *)ika_base_type_table[i].txt);
-    // uint32_t type_str_len = strlen(type_str);
     if (type.length < s->source.length - s->pos) {
       if (str_matches_at_index(s->source, type, s->pos)) {
         if (type.length > largested_matched_type_str_len) {
@@ -115,6 +100,7 @@ static bool is_atomic(tokenizer_input_stream *s) { // Couldn't resist X)
                                                                       : false;
 }
 
+// TODO: This is ugly, find a better way.
 static bool is_boolean(tokenizer_input_stream *s) {
   int current_position = s->pos;
   if (str_matches_at_index(s->source, cstr("true"), s->pos) ||
@@ -122,7 +108,6 @@ static bool is_boolean(tokenizer_input_stream *s) {
     s->pos += 4;
     if (str_matches_at_index(s->source, cstr("e"), s->pos))
       s->pos++;
-    // Handle falsey, trueth named identifiers
     bool is_part_of_identifier = is_atomic(s);
     s->pos = current_position;
     return !is_part_of_identifier;
@@ -147,8 +132,6 @@ static token_t tokenize_string(tokenizer_input_stream *s) {
   while ((!is_string_marker(s) || escaped) && s->pos <= s->source.length) {
     // Handle invalid escape codes
     if (escaped && !is_valid_string_escape_character(s)) { // Handle error
-      // TODO:  Move this to tokenize.c and take tokenizer_input_stream as the
-      // parameter.
       displayCompilerError(s->source.ptr, s->pos,
                            "Invalid string escape sequence.  Valid sequences "
                            "are \\\\, \\n, \\t, \\\".",
@@ -288,7 +271,7 @@ dynarray *tokenizer_scan(tokenizer_input_stream *s) {
     }
   }
 
-  printf("Done tokenizing, found %li tokens.\n", tokens->count);
+  log_info("Done tokenizing, found {u64} tokens.\n", tokens->count);
   return tokens;
 }
 

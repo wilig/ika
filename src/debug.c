@@ -10,21 +10,22 @@ void debug_print_parsed_expr(compilation_unit_t *unit, expr_t *expr) {
   case literal_value: {
     literal_value_t *lv = &expr->literal;
     printf("%.*s", lv->value->value.length, lv->value->value.ptr);
-    printf(" <LiteralValue> ");
+    // printf(" ");
     break;
   }
   case identifier: {
     identifier_t *i = &expr->identifier;
     printf("%.*s", i->value->value.length, i->value->value.ptr);
-    printf(" <Identifier> ");
+    // printf(" ");
     break;
   }
   case binary_expr: {
     binary_expr_t *be = &expr->binary;
+    printf("(");
     debug_print_parsed_expr(unit, be->left);
-    printf("%.*s", be->op->value.length, be->op->value.ptr);
-    printf(" <Operator> ");
+    printf(" %.*s ", be->op->value.length, be->op->value.ptr);
     debug_print_parsed_expr(unit, be->right);
+    printf(")");
     break;
   }
   }

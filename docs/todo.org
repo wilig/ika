@@ -2,6 +2,7 @@
 * DONE Fix parsing
 * DONE Have tokenizer add line/column to tokens
 * DONE Add symbol table logic to parsing
+* TODO possibly convert to pika parser
 * TODO operator precedence
 * TODO constant folding?
 * TODO Add semantic analysis

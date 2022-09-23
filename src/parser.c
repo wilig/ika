@@ -165,7 +165,6 @@ void parse_expression(compilation_unit_t *unit, expr_t *expr) {
   token_t *token = peek_current_token(unit);
 
   if (an_operator(nt->type)) {
-    printf("parsing binary expression\n");
     parse_binary(unit, expr);
   } else {
     parse_simple_expression(unit, expr);
