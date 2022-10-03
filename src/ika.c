@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -15,14 +16,14 @@
 #include "tokenize.h"
 
 int main(int argc, char **argv) {
+  // Enable UTF-8 output for "fancy" line drawing..
+  setlocale(LC_ALL, "C.UTF-8");
   allocator_t allocator =
       allocator_init(linear_allocator, (allocator_options){0});
   log_init(allocator,
            (logger_configuration){.active_log_level = debug_log_level,
                                   .file_handle = stdout});
   log_register_type(cstr("token"), tokenizer_print_token);
-  printf("Value of true is %d\n", true);
-  printf("Value of false is %d\n", false);
   struct stat info;
   // char *buffer;
   if (argc != 2) {
@@ -68,12 +69,6 @@ int main(int argc, char **argv) {
   for (int x = 0; x < tokens->count; x++) {
     log_info("Found {token}\n", dynarray_get(tokens, x));
   }
-  // token_t **tokens = tokenize(buffer, info.st_size);
-  // int i = 0;
-  // while (tokens[i]->type != ika_eof) {
-  //  log_info("Found {token}\n", tokens[i++]);
-  //}
-  // log_info("Moving to parsing phase\n");
   compilation_unit_t unit = (compilation_unit_t){.src_file = {argv[1]},
                                                  .allocator = allocator,
                                                  .buffer = &contents,
@@ -81,5 +76,4 @@ int main(int argc, char **argv) {
   ast_node_t *root = parser_parse(&unit);
   printf("ROOT\n");
   print_node_as_tree(root, 0);
-  // analyzer_analyze(&unit);
 }

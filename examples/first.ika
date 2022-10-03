@@ -9,6 +9,7 @@ single_expression := (100 + 100)
 
 typed_assignment : u64 = 10 * 1200
 
+// This defines an inner scope
 {
     let my_const := 45
     another_var : u32 = 100
