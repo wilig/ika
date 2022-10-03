@@ -1,7 +1,6 @@
 #pragma once
 
 #include "allocator.h"
-#include "defines.h"
 
 typedef struct str {
   char *ptr;

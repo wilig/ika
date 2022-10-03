@@ -1,16 +1,18 @@
-#include "ika.h"
-#include "allocator.h"
-#include "analyzer.h"
-#include "debug.h"
-#include "dynarray.h"
-#include "hashtbl.h"
-#include "log.h"
-#include "parser.h"
-#include "tokenize.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+
+#include "../lib/allocator.h"
+#include "../lib/dynarray.h"
+#include "../lib/hashtbl.h"
+#include "../lib/log.h"
+
+#include "analyzer.h"
+#include "ika.h"
+#include "parser.h"
+#include "print.h"
+#include "tokenize.h"
 
 int main(int argc, char **argv) {
   allocator_t allocator =
@@ -76,7 +78,8 @@ int main(int argc, char **argv) {
                                                  .allocator = allocator,
                                                  .buffer = &contents,
                                                  .tokens = tokens};
-  parser_parse(&unit);
-  analyzer_analyze(&unit);
-  debug_print_parse_tree(&unit);
+  ast_node_t *root = parser_parse(&unit);
+  printf("ROOT\n");
+  print_node_as_tree(root, 0);
+  // analyzer_analyze(&unit);
 }

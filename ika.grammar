@@ -1,0 +1,8 @@
+statement -> assignment | expr | if_statement | let_statement | block
+expr -> expr '+' term | expr '-' term | term
+term -> term '*' symbol | term '/' symbol | symbol
+symbol -> NAME | NUMBER | STRING | '(' expr ')'
+assignment -> NAME ':' '=' expr ';'| target ':' ika_type '=' expr ';'
+if_statement: 'if' '(' expr ')' block | 'if' '(' expr ')' block 'else' (if_statement | block)
+let_statement: 'let' assignment
+block: '{' statement '}'

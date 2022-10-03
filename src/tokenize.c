@@ -1,16 +1,16 @@
-#include "tokenize.h"
-#include "allocator.h"
-#include "defines.h"
-#include "dynarray.h"
-#include "errors.h"
-#include "log.h"
-#include "str.h"
-#include "types.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "../lib/log.h"
+#include "../lib/str.h"
+
+#include "defines.h"
+#include "errors.h"
+#include "tokenize.h"
+#include "types.h"
 
 static token_position_t tokenizer_calculate_position(str source,
                                                      uint32_t offset) {
@@ -36,11 +36,11 @@ static int is_newline(tokenizer_input_stream *s) {
 // but get it to work fist, then make it fast.
 // Returns the largest type str that matches input.  So ':=' is a better match
 // then ':'.
+// TODO: Fix this - constrain to just types, get longest type and compare.
 static int lookup_ika_type_index(tokenizer_input_stream *s) {
-  uint32_t size = sizeof(ika_base_type_table) / sizeof(*ika_base_type_table);
   uint32_t matched_type = -1;
   uint32_t largested_matched_type_str_len = 0;
-  for (uint32_t i = 0; i < size; i++) {
+  for (uint32_t i = 0; i < ika_eof; i++) {
     str type = cstr((char *)ika_base_type_table[i].txt);
     if (type.length < s->source.length - s->pos) {
       if (str_matches_at_index(s->source, type, s->pos)) {

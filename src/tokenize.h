@@ -1,12 +1,13 @@
 #pragma once
 
-#include "allocator.h"
-#include "defines.h"
-#include "dynarray.h"
-#include "str.h"
-#include "types.h"
-
 #include <stdio.h>
+
+#include "../lib/allocator.h"
+#include "../lib/dynarray.h"
+#include "../lib/str.h"
+
+#include "defines.h"
+#include "types.h"
 
 #define TOKEN_BUCKET_SIZE 1000
 

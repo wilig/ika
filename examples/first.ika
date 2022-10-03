@@ -1,108 +1,21 @@
-// A single line comment in Ika
-ns main;
+// Simple assignment and math
 
-// import io;
+simple_multiplication := 10 * 5 * 3 * 8 * 2
+simple_multiplication_and_division := 10 * 5 / 8 * 27 / 2
+simple_subtraction := 10 - 5 - 3 - 2
+simple_precedence := 10 - 5 * 3 - 2
+simple_precedence_with_parens := (10 - 5) * 3 / 2 + 50 / 4
+single_expression := (100 + 100)
 
-let stdout := 1;
-let stderr := 2;
-let stdin  := 0;
+typed_assignment : u64 = 10 * 1200
 
-let floaty := 1.21;
+{
+    let my_const := 45
+    another_var : u32 = 100
+}
 
-let truthy := true;
-let falsey := false;
-
-// This should cause an duplicate identifier error
-// let stderr := "hello?";
-
-let weird : u64 = 100 * 340189;
-let simple_precedence := 5 + 10 * 2 / 5;
-//let my_int := ((7 + 10) * 30) - 100);
-// let paren_precendence := (5 + 10) * 2 / 5;
-
-var name := "This is a string for the name var";
-var multiplier := 100;
-
-var result := 5 * multiplier;
-
-if(stdout == 1) {
-  result = 100;
-  // This should cause an error because it's const
-  weird -= 1000;
-  // This should cause an error because it's undefined
-  undef = 1.1;
+if (10 + 1 == 11) {
+  let bang := 100
 } else {
-  result = 200;
+  boom := 50
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-var name := "This is a string for the name var";
-var multiplier := 100;
-
-var result := 5 * multiplier ;
-
-Start small stupid.
-
-
-/* A main function is a good idea
- *
- * See this one here:
-*/
-fn main() void {
-   io.writeln(io.stdout, "Hello squidlets");
-   io.writeln(io.stdout, "Hello\n\t\t\"squidlets\"");
-}
-
-var empty_string := "";
-var hex_num : u64 = 0xFEEDDEAD;
-var big_decimal := 10000000;
-var float_one := 1.003;
-var float_two := 1.575E1;
-var float_three := 1575e-2;
-var float_four := -2.5e-3;
-
-/*  Multi-line comment
-fn match_fn(u64 x) void {
-   match x {
-     1 -> writeln(io.stdout, "You sent the number 1"),
-     2 -> writeln(io.stdout, "You send the number 2"),
-     any -> writeln(io.stdout, "Well it wasn't the number 1 or 2")
-   }
-}
-
-    /* Nested multiline comment on one line */
-
-fn maths() !u64 {
-   let x := 5;
-   let y := 10 * 5;
-   var v : u64 = 100 * y;
-
-   y = 1; // Should fail
-   y := 1; // Should also fail
-   v = 10; // Should reassign v
-   return v;
-}
-
-
-test "basic testing is part of the language" {
-
-}
-*/
-*/

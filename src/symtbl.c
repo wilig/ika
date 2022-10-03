@@ -1,9 +1,11 @@
-#include "symtbl.h"
-#include "allocator.h"
-#include "hashtbl.h"
-#include "log.h"
+#include <stdlib.h>
+
+#include "../lib/allocator.h"
+#include "../lib/hashtbl.h"
+#include "../lib/log.h"
+
 #include "parser.h"
-#include "stdlib.h"
+#include "symtbl.h"
 #include "types.h"
 
 size_t determine_byte_size(e_ika_type type) {
@@ -54,7 +56,7 @@ symtbl_entry_t *symtbl_lookup(symtbl_t *t, str key) {
 }
 
 void symtbl_insert(symtbl_t *t, str name, e_ika_type type, bool constant,
-                   size_t line, size_t column) {
+                   uint32_t line, uint32_t column) {
   symtbl_entry_t *entry =
       allocator_alloc_or_exit(t->allocator, sizeof(symtbl_entry_t));
   str *entry_name = allocator_alloc_or_exit(t->allocator, sizeof(str));
@@ -74,7 +76,8 @@ void symtbl_insert(symtbl_t *t, str name, e_ika_type type, bool constant,
   };
 }
 
-void symtbl_add_reference(symtbl_t *t, str key, size_t line, size_t column) {
+void symtbl_add_reference(symtbl_t *t, str key, uint32_t line,
+                          uint32_t column) {
   symtbl_entry_t *entry = symtbl_lookup(t, key);
   if (entry) {
     symbol_table_reference_t *ref =
@@ -121,9 +124,9 @@ void symtbl_dump(symtbl_t *t) {
     str type_name = tokenizer_get_token_type_name(entry->type);
     printf("| %s", type_name.ptr);
     symtbl_print_fill_space(19 - type_name.length);
-    printf("| %li", entry->line);
+    printf("| %i", entry->line);
     symtbl_print_fill_space(6 - count_digits(entry->line));
-    printf("| %li", entry->column);
+    printf("| %i", entry->column);
     symtbl_print_fill_space(7 - count_digits(entry->column));
     printf("|\n");
   }

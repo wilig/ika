@@ -1,6 +1,26 @@
 #+title: Ika language thoughts
 
+* Copying parameters vs reference?
+**   Mutable vs. immutable parameters?
+* Closures are supposedly expensive/complex
 * Named parameters with defaults are really nice
 * Returning multiple values is very useful
 * Pattern matching is way nicer then nested ifs
+* Functions/procedures as first class citizens enables an appealing style
 * Tagged enums are a really nice idea
+* Ditto with unions
+* Zig gets monomophism right in my opinion
+* Odin prioritizes developer joy and it shows
+* Erlang supervision trees and message passing are very cool (probably way to costly performance wise)
+* Pattern matching is very powerful in many contexts
+* Procedure threading or perhaps chaining makes for nice flow
+
+
+How small can I make the core language?
+
+    Can I use some sort of yield to implement looping?
+    Which is more fundamental while or for?
+    The language needs a way to alloc and free memory.
+        Safety vs speed here is a major tradeoff it seems.
+    Need types, assignment, branching (if/else)
+    Can I delay evaluation?  (While/for as functions?)
