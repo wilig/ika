@@ -7,6 +7,10 @@
 #include "tokenize.h"
 #include "types.h"
 
+// TODO: Handle function declarations
+// TODO: Handle return statement
+// TODO: First pass at error handling
+
 ast_node_t *parse_node(parser_state_t *);
 ast_node_t *parse_expr(parser_state_t *);
 
@@ -88,7 +92,7 @@ ast_node_t *parse_str_literal(parser_state_t *state) {
 
 ast_node_t *parse_bool_literal(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type == ika_str_literal) {
+  if (token->type == ika_bool_literal) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
     node->type = ast_bool_literal;
@@ -116,7 +120,8 @@ ast_node_t *parse_symbol(parser_state_t *state) {
 
 ast_node_t *parse_literal(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type == ika_paren_open) {
+  switch (token->type) {
+  case ika_paren_open: {
     uint32_t starting_pos = state->current_token;
     advance_token_pointer(state);
     ast_node_t *parenthasized_expr = parse_expr(state);
@@ -129,8 +134,19 @@ ast_node_t *parse_literal(parser_state_t *state) {
     }
     rollback_token_pointer(state, starting_pos);
     return NULL;
-  } else {
+  }
+  case ika_int_literal:
+  case ika_num_literal:
     return parse_int_literal(state);
+  case ika_float_literal:
+    return parse_float_literal(state);
+  case ika_bool_literal:
+    return parse_bool_literal(state);
+  case ika_str_literal: 
+    return parse_str_literal(state);
+  default: {
+    return NULL;
+  }
   }
 }
 

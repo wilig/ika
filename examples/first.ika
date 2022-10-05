@@ -1,4 +1,17 @@
-// Simple assignment and math
+// Simple untyped assignment
+
+int_assignment := 10
+string_assignment := "This is a string!"
+bool_assignment := true
+float_assignment := 100.5
+returning := false
+truenough := 100
+
+// Simple typed assignment
+
+typed_assignment : u64 = 10 * 1200
+
+// Precedence
 
 simple_multiplication := 10 * 5 * 3 * 8 * 2
 simple_multiplication_and_division := 10 * 5 / 8 * 27 / 2
@@ -7,16 +20,31 @@ simple_precedence := 10 - 5 * 3 - 2
 simple_precedence_with_parens := (10 - 5) * 3 / 2 + 50 / 4
 single_expression := (100 + 100)
 
-typed_assignment : u64 = 10 * 1200
-
 // This defines an inner scope
 {
     let my_const := 45
     another_var : u32 = 100
 }
 
+// If statement with blocks
 if (10 + 1 == 11) {
   let bang := 100
 } else {
   boom := 50
 }
+
+/* Commented for now
+// Simple function that returns void
+fn nothing() {
+  i_do_nothing := 1
+}
+
+// Simple function that returns an int
+fn double(x: u64): int {
+  return x * 2
+}
+
+fn swap(x: u16, y: u16): (u16, u16) {
+  return (y, x)
+}
+*/

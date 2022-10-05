@@ -22,8 +22,10 @@ void print_node_as_sexpr(ast_node_t *node) {
     printf("%li", node->literal.integer_value);
   } else if (node->type == ast_float_literal) {
     printf("%fl", node->literal.float_value);
+  } else if (node->type == ast_bool_literal) {
+    printf("%s", node->literal.integer_value == 1 ? "true" : "false");
   } else if (node->type == ast_str_literal) {
-    printf("%*.s", node->literal.string_value.length,
+    printf("%.*s", node->literal.string_value.length,
            node->literal.string_value.ptr);
   }
 }
@@ -41,7 +43,7 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     printf("%lc ", 0x251c);
     ast_node_t *identifier = node->assignment.identifier;
     if (node->assignment.constant)
-      printf("const ");
+      printf("[CONST] ");
     printf("%.*s [%s] = ", identifier->symbol.value.length,
            identifier->symbol.value.ptr,
            ika_base_type_table[node->assignment.type].label);

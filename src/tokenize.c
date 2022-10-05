@@ -32,21 +32,47 @@ static int is_newline(tokenizer_input_stream *s) {
   return (c == '\n');
 }
 
-// This is quite slow and will probably be a major bottleneck,
-// but get it to work fist, then make it fast.
+static bool is_atomic(char c) { // Couldn't resist X)
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' ? true
+                                                                      : false;
+}
+
+// Test to see if a reserved word is part of a larger identifier
+static bool is_part_of_identifier(tokenizer_input_stream *s, str atom) {
+  return is_atomic(str_get_char(s->source, s->pos + atom.length));
+}
+
 // Returns the largest type str that matches input.  So ':=' is a better match
 // then ':'.
-// TODO: Fix this - constrain to just types, get longest type and compare.
-static int lookup_ika_type_index(tokenizer_input_stream *s) {
-  uint32_t matched_type = -1;
-  uint32_t largested_matched_type_str_len = 0;
-  for (uint32_t i = 0; i < ika_eof; i++) {
+static int get_ika_operator(tokenizer_input_stream *s) {
+  int matched_op = -1;
+  uint32_t largest_matched_op_str_len = 0;
+  for (uint32_t i = __ika_operators_start; i < __ika_operators_end; i++) {
     str type = cstr((char *)ika_base_type_table[i].txt);
     if (type.length < s->source.length - s->pos) {
       if (str_matches_at_index(s->source, type, s->pos)) {
-        if (type.length > largested_matched_type_str_len) {
+        if (type.length > largest_matched_op_str_len) {
+          matched_op = i;
+          largest_matched_op_str_len = type.length;
+        }
+      }
+    }
+  }
+  return matched_op;
+}
+
+// Returns the largest ika type name that is not part of a larger identifier
+static int get_ika_type(tokenizer_input_stream *s) {
+  int matched_type = -1;
+  uint32_t largest_matched_type_str_len = 0;
+  for (uint32_t i = __ika_types_start + 1; i < __ika_types_end - 1; i++) {
+    str type = cstr((char *)ika_base_type_table[i].txt);
+    if (type.length < s->source.length - s->pos) {
+      if (str_matches_at_index(s->source, type, s->pos) &&
+          !is_part_of_identifier(s, type)) {
+        if (type.length > largest_matched_type_str_len) {
           matched_type = i;
-          largested_matched_type_str_len = type.length;
+          largest_matched_type_str_len = type.length;
         }
       }
     }
@@ -54,12 +80,43 @@ static int lookup_ika_type_index(tokenizer_input_stream *s) {
   return matched_type;
 }
 
+// Returns the largest ika keyword that is not part of a larger identifier
+static int get_ika_keyword(tokenizer_input_stream *s) {
+  int matched_keyword = -1;
+  uint32_t largest_matched_keyword_str_len = 0;
+  for (uint32_t i = __ika_keywords_start; i < __ika_keywords_end; i++) {
+    str kw = cstr((char *)ika_base_type_table[i].txt);
+    if (kw.length < s->source.length - s->pos) {
+      if (str_matches_at_index(s->source, kw, s->pos) &&
+          !is_part_of_identifier(s, kw)) {
+        if (kw.length > largest_matched_keyword_str_len) {
+          matched_keyword = i;
+          largest_matched_keyword_str_len = kw.length;
+        }
+      }
+    }
+  }
+  return matched_keyword;
+}
+
+// Returns the largest type str that matches input.  So ':=' is a better match
+// then ':'.
+static int lookup_ika_reserved_word_index(tokenizer_input_stream *s) {
+  int match = get_ika_operator(s);
+  if (match > -1)
+    return match;
+  match = get_ika_type(s);
+  if (match > -1)
+    return match;
+  return get_ika_keyword(s);
+}
+
 static char current_char(tokenizer_input_stream *s) {
   return str_get_char(s->source, s->pos);
 }
 
-static bool is_ika_type(tokenizer_input_stream *s) {
-  return lookup_ika_type_index(s) != -1 ? true : false;
+static bool is_ika_reserved_word(tokenizer_input_stream *s) {
+  return lookup_ika_reserved_word_index(s) != -1 ? true : false;
 }
 
 static bool is_string_marker(tokenizer_input_stream *s) {
@@ -94,23 +151,14 @@ static bool is_numeric(tokenizer_input_stream *s) {
              : false;
 }
 
-static bool is_atomic(tokenizer_input_stream *s) { // Couldn't resist X)
-  char c = current_char(s);
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' ? true
-                                                                      : false;
-}
-
-// TODO: This is ugly, find a better way.
 static bool is_boolean(tokenizer_input_stream *s) {
   int current_position = s->pos;
-  if (str_matches_at_index(s->source, cstr("true"), s->pos) ||
-      str_matches_at_index(s->source, cstr("false"), s->pos)) {
-    s->pos += 4;
-    if (str_matches_at_index(s->source, cstr("e"), s->pos))
-      s->pos++;
-    bool is_part_of_identifier = is_atomic(s);
-    s->pos = current_position;
-    return !is_part_of_identifier;
+  if (current_char(s) != 't' && current_char(s) != 'f')
+    return false;
+  else if (str_matches_at_index(s->source, cstr("true"), s->pos)) {
+    return !is_part_of_identifier(s, cstr("true"));
+  } else if (str_matches_at_index(s->source, cstr("false"), s->pos)) {
+    return !is_part_of_identifier(s, cstr("false"));
   }
   return false;
 }
@@ -192,7 +240,7 @@ static token_t tokenize_comment(tokenizer_input_stream *s) {
 }
 
 static token_t tokenize_type(tokenizer_input_stream *s) {
-  int type_idx = lookup_ika_type_index(s);
+  int type_idx = lookup_ika_reserved_word_index(s);
   assert(type_idx > -1);
   int starting_offset = s->pos;
   ika_type_map_entry_t type_entry = ika_base_type_table[type_idx];
@@ -208,11 +256,11 @@ static token_t tokenize_type(tokenizer_input_stream *s) {
 
 // TODO: rename to scan symbol
 static token_t tokenize_atom(tokenizer_input_stream *s) {
-  assert(is_atomic(s));
+  assert(is_atomic(current_char(s)));
   int starting_offset = s->pos;
   do {
     s->pos++;
-  } while (is_atomic(s) && s->pos < s->source.length);
+  } while (is_atomic(current_char(s)) && s->pos < s->source.length);
   return (token_t){
       .type = ika_identifier,
       .value = tokenizer_extract_value(s, starting_offset, s->pos),
@@ -225,10 +273,13 @@ static token_t tokenize_numeric(tokenizer_input_stream *s) {
   do {
     s->pos++;
   } while (is_numeric(s) && s->pos < s->source.length);
+  str value = tokenizer_extract_value(s, starting_offset, s->pos);
   return (token_t){
-      .type = ika_num_literal,
+      .type =
+          str_contains(value, cstr(".")) ? ika_float_literal : ika_int_literal,
       .position = tokenizer_calculate_position(s->source, starting_offset),
-      .value = tokenizer_extract_value(s, starting_offset, s->pos)};
+      .value = value,
+  };
 }
 
 static token_t tokenize_boolean(tokenizer_input_stream *s) {
@@ -251,13 +302,13 @@ dynarray *tokenizer_scan(tokenizer_input_stream *s) {
     if (is_comment(s)) {
       token_t token = tokenize_comment(s);
       dynarray_append(tokens, &token);
-    } else if (is_ika_type(s)) {
+    } else if (is_ika_reserved_word(s)) {
       token_t token = tokenize_type(s);
       dynarray_append(tokens, &token);
     } else if (is_boolean(s)) { // Must be checked before atomic/identifier
       token_t token = tokenize_boolean(s);
       dynarray_append(tokens, &token);
-    } else if (is_atomic(s)) {
+    } else if (is_atomic(current_char(s))) {
       token_t token = tokenize_atom(s);
       dynarray_append(tokens, &token);
     } else if (is_string_marker(s)) {
