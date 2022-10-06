@@ -1,5 +1,6 @@
 #include "print.h"
 #include "parser.h"
+#include "types.h"
 
 void print_node_as_sexpr(ast_node_t *node) {
   if (node->type == ast_term) {
@@ -69,6 +70,49 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     }
     break;
   }
+  case ast_fn: {
+    print_indent(indent_level);
+    printf("%lc ", 0x251c);
+    printf("fn ");
+    ast_node_t *identifier = node->fn.identifier;
+    printf("%.*s", identifier->symbol.value.length,
+           identifier->symbol.value.ptr);
+    printf("(");
+    for (int i = 0; i < node->fn.parameters.count; i++) {
+      ast_node_t *decl_node = dynarray_get(&node->fn.parameters, i);
+      identifier = decl_node->decl.identifier;
+      printf("%.*s:%s", identifier->symbol.value.length,
+             identifier->symbol.value.ptr,
+             ika_base_type_table[decl_node->decl.type].label);
+      if (i < node->fn.parameters.count - 1)
+        printf(", ");
+    }
+    printf(") returns ");
+    if (node->fn.return_types.count == 0) {
+      printf("void");
+    } else {
+      printf("(");
+      for (int i = 0; i < node->fn.return_types.count; i++) {
+        e_ika_type *return_type = dynarray_get(&node->fn.return_types, i);
+        printf("%s", ika_base_type_table[*return_type].label);
+        if (i < node->fn.return_types.count - 1)
+          printf(", ");
+      }
+      printf(")");
+    }
+    printf("\n");
+    print_node_as_tree(node->fn.block, indent_level);
+    break;
+  }
+  case ast_decl: {
+    print_indent(indent_level);
+    printf("%lc ", 0x251c);
+    ast_node_t *identifier = node->decl.identifier;
+    printf("%.*s [%s]", identifier->symbol.value.length,
+           identifier->symbol.value.ptr,
+           ika_base_type_table[node->decl.type].label);
+    printf("\n");
+  }
   case ast_block: {
     print_indent(indent_level);
     printf("%lc%lc%lc\n", 0x2514, 0x2500, 0x2510);
@@ -79,6 +123,23 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     }
     print_indent(indent_level);
     printf("%lc%lc%lc", 0x250c, 0x2500, 0x2518);
+    printf("\n");
+    break;
+  }
+  case ast_return: {
+    print_indent(indent_level);
+    printf("%lc ", 0x251c);
+    printf("return ");
+    dynarray exprs = node->returns.exprs;
+    if (exprs.count > 0) {
+      printf("(");
+      for (int i = 0; i < exprs.count; i++) {
+        print_node_as_sexpr(dynarray_get(&exprs, i));
+        if (i < exprs.count - 1)
+          printf(", ");
+      }
+      printf(")");
+    }
     printf("\n");
     break;
   }

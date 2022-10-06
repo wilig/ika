@@ -79,7 +79,7 @@ typedef struct {
 } decl_t;
 
 typedef struct {
-  ast_node_t *identifer;
+  ast_node_t *identifier;
   dynarray parameters;
   dynarray return_types;
   ast_node_t *block;

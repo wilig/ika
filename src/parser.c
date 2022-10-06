@@ -7,8 +7,8 @@
 #include "tokenize.h"
 #include "types.h"
 
-// TODO: Handle function declarations
-// TODO: Handle return statement
+// TODO: Handle vars in expressions
+// TODO: Handle comma expressions i.e. (x, y)
 // TODO: First pass at error handling
 
 ast_node_t *parse_node(parser_state_t *);
@@ -396,7 +396,7 @@ ast_node_t *parse_fn(parser_state_t *state) {
         if (block) {
           ast_node_t *node = make_node(state->allocator);
           node->type = ast_fn;
-          node->fn.identifer = symbol;
+          node->fn.identifier = symbol;
           node->fn.parameters = *decls;
           node->fn.block = block;
           node->fn.return_types = *returns;
@@ -471,6 +471,7 @@ ast_node_t *parse_return(parser_state_t *state) {
     node->starting_token = token;
     node->type = ast_return;
     node->returns.exprs = *returns;
+    return node;
   }
   rollback_token_pointer(state, starting_pos);
   return NULL;
