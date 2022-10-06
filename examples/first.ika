@@ -11,6 +11,9 @@ truenough := 100
 
 typed_assignment : u64 = 10 * 1200
 
+// Simple variable declaration
+big_int : u64
+
 // Precedence
 
 simple_multiplication := 10 * 5 * 3 * 8 * 2
@@ -33,12 +36,12 @@ if (10 + 1 == 11) {
   boom := 50
 }
 
-/* Commented for now
 // Simple function that returns void
 fn nothing() {
   i_do_nothing := 1
 }
 
+/* Commented for now
 // Simple function that returns an int
 fn double(x: u64): int {
   return x * 2

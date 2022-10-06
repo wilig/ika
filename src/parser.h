@@ -21,6 +21,9 @@ typedef enum {
   ast_assignment,
   ast_if_statement,
   ast_block,
+  ast_fn,
+  ast_decl,
+  ast_return,
 } e_ast_node_type;
 
 typedef struct ast_node_t ast_node_t;
@@ -66,6 +69,22 @@ typedef struct {
   dynarray nodes;
 } block_t;
 
+typedef struct {
+  dynarray exprs;
+} return_t;
+
+typedef struct {
+  ast_node_t *identifier;
+  e_ika_type type;
+} decl_t;
+
+typedef struct {
+  ast_node_t *identifer;
+  dynarray parameters;
+  dynarray return_types;
+  ast_node_t *block;
+} fn_t;
+
 typedef struct ast_node_t {
   e_ast_node_type type;
   token_t *starting_token;
@@ -74,11 +93,14 @@ typedef struct ast_node_t {
   union {
     literal_t literal;
     symbol_t symbol;
+    decl_t decl;
     expr_t expr;
     term_t term;
     assignment_t assignment;
     if_t if_statement;
     block_t block;
+    fn_t fn;
+    return_t returns;
   };
 } ast_node_t;
 

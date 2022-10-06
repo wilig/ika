@@ -142,7 +142,7 @@ ast_node_t *parse_literal(parser_state_t *state) {
     return parse_float_literal(state);
   case ika_bool_literal:
     return parse_bool_literal(state);
-  case ika_str_literal: 
+  case ika_str_literal:
     return parse_str_literal(state);
   default: {
     return NULL;
@@ -288,6 +288,42 @@ ast_node_t *parse_assignment(parser_state_t *state) {
   return NULL;
 }
 
+e_ika_type parse_ika_type_decl(parser_state_t *state) {
+  uint32_t starting_pos = state->current_token;
+  if (expect_and_consume(state, ika_colon)) {
+    token_t *token = get_token(state);
+    e_ika_type type;
+    if (token->type > __ika_types_start && token->type < __ika_types_end) {
+      type = token->type;
+      advance_token_pointer(state);
+      return type;
+    }
+  }
+  rollback_token_pointer(state, starting_pos);
+  return ika_unknown;
+}
+
+// TODO: Use this in assignment and remove untyped assign.
+ast_node_t *parse_decl(parser_state_t *state) {
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  if (token->type == ika_identifier) {
+    ast_node_t *symbol = parse_symbol(state);
+    if (symbol) {
+      e_ika_type type = parse_ika_type_decl(state);
+      if (type != ika_unknown) {
+        ast_node_t *node = make_node(state->allocator);
+        node->type = ast_decl;
+        node->decl.identifier = symbol;
+        node->decl.type = type;
+        return node;
+      }
+    }
+  }
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
+}
+
 ast_node_t *parse_block(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
@@ -303,6 +339,71 @@ ast_node_t *parse_block(parser_state_t *state) {
     }
     advance_token_pointer(state); // Move past closing brace
     return node;
+  }
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
+}
+
+ast_node_t *parse_fn(parser_state_t *state) {
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  if (token->type == ika_keyword_fn) {
+    advance_token_pointer(state);
+    ast_node_t *symbol = parse_symbol(state);
+    printf("parse_fn: %p\n", symbol);
+    if (symbol) {
+      dynarray *decls = dynarray_init(state->allocator, sizeof(ast_node_t));
+      dynarray *returns = dynarray_init(state->allocator, sizeof(ast_node_t));
+      if (expect_and_consume(state, ika_paren_open)) {
+        // TODO: Use do {} while
+        ast_node_t *decl = parse_decl(state);
+        if (decl) {
+          dynarray_append(decls, decl);
+          while (expect_and_consume(state, ika_comma)) {
+            decl = parse_decl(state);
+            if (decl)
+              dynarray_append(decls, decl);
+          }
+        }
+      }
+      if (expect_and_consume(state, ika_paren_close)) {
+        if (expect_and_consume(state, ika_colon)) {
+          token_t *next_token = get_token(state);
+          if (next_token->type > __ika_types_start &&
+              next_token->type < __ika_types_end) {
+            dynarray_append(returns, &next_token->type);
+            advance_token_pointer(state);
+          } else if (next_token->type == ika_paren_open) {
+            advance_token_pointer(state);
+            do {
+              next_token = get_token(state);
+              if (next_token->type > __ika_types_start &&
+                  next_token->type < __ika_types_end)
+                dynarray_append(returns, &next_token->type);
+              advance_token_pointer(state);
+            } while (expect_and_consume(state, ika_comma));
+            if (!expect_and_consume(state, ika_paren_close)) {
+              next_token = get_token(state);
+              printf("Syntax error, expected a closing parenthesis, got %d\n",
+                     next_token->type);
+              exit(-1);
+            }
+          } else {
+            // Error handling
+          }
+        }
+        ast_node_t *block = parse_block(state);
+        if (block) {
+          ast_node_t *node = make_node(state->allocator);
+          node->type = ast_fn;
+          node->fn.identifer = symbol;
+          node->fn.parameters = *decls;
+          node->fn.block = block;
+          node->fn.return_types = *returns;
+          return node;
+        }
+      }
+    }
   }
   rollback_token_pointer(state, starting_pos);
   return NULL;
@@ -341,6 +442,40 @@ ast_node_t *parse_if_statement(parser_state_t *state) {
   return NULL;
 }
 
+ast_node_t *parse_return(parser_state_t *state) {
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  if (token->type == ika_keyword_return) {
+    advance_token_pointer(state);
+    token_t *next_token = get_token(state);
+    dynarray *returns = dynarray_init(state->allocator, sizeof(ast_node_t));
+    if (next_token->type == ika_paren_open) {
+      advance_token_pointer(state);
+      do {
+        ast_node_t *expr = parse_expr(state);
+        if (expr)
+          dynarray_append(returns, expr);
+      } while (expect_and_consume(state, ika_comma));
+      if (!expect_and_consume(state, ika_paren_close)) {
+        next_token = get_token(state);
+        printf("Syntax error, expected a closing parenthesis, got %d\n",
+               next_token->type);
+        exit(-1);
+      }
+    } else {
+      ast_node_t *expr = parse_expr(state);
+      if (expr)
+        dynarray_append(returns, expr);
+    }
+    ast_node_t *node = make_node(state->allocator);
+    node->starting_token = token;
+    node->type = ast_return;
+    node->returns.exprs = *returns;
+  }
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
+}
+
 ast_node_t *parse_node(parser_state_t *state) {
   ast_node_t *node;
   // Skip coments
@@ -358,6 +493,15 @@ ast_node_t *parse_node(parser_state_t *state) {
   if (node)
     return node;
   node = parse_block(state);
+  if (node)
+    return node;
+  node = parse_fn(state);
+  if (node)
+    return node;
+  node = parse_decl(state);
+  if (node)
+    return node;
+  node = parse_return(state);
   if (node)
     return node;
   token_t *errorneous_token = get_token(state);
