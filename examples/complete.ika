@@ -1,7 +1,47 @@
 // A single line comment in Ika
 ns main;
 
-// import io;
+let io = import("io");
+let allocator = import("allocator");
+
+io.stdout.write("hello\n");
+
+let print = io.stdout.write;
+print("hello\n");
+
+
+// This defines a new type
+typedef my_data {
+  u32: x,
+  u32: y,
+  u32: z,
+}
+
+fn to_string(my_data): str {
+  return str(x)+", "+str(y)+", "+str(z)
+}
+
+io.stdout.register_printer(my_data, to_string);
+print("my_data: {}", my_data);
+
+behavior stringable {
+  to_string(i any): str
+}
+
+
+
+
+
+instance_of_my_data : ^my_data = allocator.new(my_data)
+defer allocator.delete(instance_of_my_data)
+db: [100]my_data
+append(db, instance_of_my_data^)
+
+// Perhaps use compile time
+
+impl to_string my_data {
+
+}
 
 let stdout := 1;
 let stderr := 2;

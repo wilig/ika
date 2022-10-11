@@ -1,27 +1,27 @@
-#include <assert.h>
-#include <stdlib.h>
+/* #include <assert.h> */
+/* #include <stdlib.h> */
 
-#include "../lib/str.h"
+/* #include "../lib/str.h" */
 
-#include "analyzer.h"
-#include "parser.h"
-#include "symtbl.h"
-#include "tokenize.h"
-#include "types.h"
+/* #include "analyzer.h" */
+/* #include "parser.h" */
+/* #include "symtbl.h" */
+/* #include "tokenize.h" */
+/* #include "types.h" */
 
-bool starts_with_digit(str value) {
-  return value.ptr[0] >= '0' && value.ptr[0] <= 9;
-}
+/* bool starts_with_digit(str value) { */
+/*   return value.ptr[0] >= '0' && value.ptr[0] <= 9; */
+/* } */
 
-e_ika_type specialize_num_literal(str value) {
-  if (str_contains(value, cstr("."))) {
-    return ika_float_literal;
-  } else {
-    return ika_int_literal;
-  }
-}
+/* e_ika_type specialize_num_literal(str value) { */
+/*   if (str_contains(value, cstr("."))) { */
+/*     return ika_float_literal; */
+/*   } else { */
+/*     return ika_int_literal; */
+/*   } */
+/* } */
 
-e_ika_type analyzer_type_a_binary_expr(symtbl_t *t, expr_t *expr);
+/* e_ika_type analyzer_type_a_binary_expr(symtbl_t *t, expr_t *expr); */
 
 /* e_ika_type analyzer_deduce_type(symtbl_t *t, expr_t *expr) { */
 /*   switch (expr->type) { */
@@ -106,7 +106,7 @@ e_ika_type analyzer_type_a_binary_expr(symtbl_t *t, expr_t *expr);
 /*   } */
 /* } */
 
-void analyzer_analyze(compilation_unit_t *unit) {
-  printf("Analyzing scopes\n");
-  // analyzer_resolve_types(&unit->scopes[0]);
-}
+/* void analyzer_analyze(compilation_unit_t *unit) { */
+/*   printf("Analyzing scopes\n"); */
+/*   // analyzer_resolve_types(&unit->scopes[0]); */
+/* } */

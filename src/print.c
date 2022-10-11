@@ -28,6 +28,10 @@ void print_node_as_sexpr(ast_node_t *node) {
   } else if (node->type == ast_str_literal) {
     printf("%.*s", node->literal.string_value.length,
            node->literal.string_value.ptr);
+  } else if (node->type == ast_symbol) {
+    printf("%.*s", node->symbol.value.length, node->symbol.value.ptr);
+  } else {
+    printf("Unhandled node type: %d", node->type);
   }
 }
 
@@ -112,6 +116,7 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
            identifier->symbol.value.ptr,
            ika_base_type_table[node->decl.type].label);
     printf("\n");
+    break;
   }
   case ast_block: {
     print_indent(indent_level);

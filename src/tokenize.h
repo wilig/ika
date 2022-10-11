@@ -9,8 +9,6 @@
 #include "defines.h"
 #include "types.h"
 
-#define TOKEN_BUCKET_SIZE 1000
-
 typedef struct {
   uint32_t line;
   uint32_t column;
@@ -26,10 +24,11 @@ typedef struct {
   uint32_t pos;
   str source;
   allocator_t allocator;
+  dynarray *errors;
 } tokenizer_input_stream;
 
 // An array of tokens
-dynarray *tokenizer_scan(tokenizer_input_stream *);
+dynarray *tokenizer_scan(allocator_t allocator, str source, dynarray *errors);
 
 // Debugging stuff
 void tokenizer_print_token(FILE *, void *);

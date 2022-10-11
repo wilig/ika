@@ -1,5 +1,5 @@
 #pragma once
 
-#include "parser.h"
+#include "compiler.h"
 
 void analyzer_analyze(compilation_unit_t *unit);

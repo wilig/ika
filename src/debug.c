@@ -88,26 +88,3 @@
 /*   } */
 /*   } */
 /* } */
-
-void debug_print_parsed_scope(compilation_unit_t *unit, scope_t *scope) {
-  printf("I don't do anything for the moment\n");
-  /*   printf("\nFILE: %s\n", unit->src_file.ptr); */
-  /*   printf("SCOPE: %s\n", scope->name.ptr); */
-  /*   printf("Symbol Table: \n"); */
-  /*   symtbl_dump(scope->symbol_table); */
-  /*   printf("{\n"); */
-  /*   for (int i = 0; i < scope->total_decls; i++) { */
-  /*     debug_print_parsed_stmt(unit, scope->decls[i]); */
-  /*   } */
-  /*   printf("}\n"); */
-}
-
-void debug_print_parse_tree(compilation_unit_t *unit) {
-  printf("I would print the parse tree, but I'm not implemented yet.\n");
-
-  /* /\* printf("My namespace is: %.*s\n", unit->namespace_name->length, *\/ */
-  /* /\*        unit->namespace_name->ptr); *\/ */
-  /* /\* printf("\n\n"); *\/ */
-  /* /\* printf("scope %p\n", (void *)unit->scopes); *\/ */
-  // debug_print_parsed_scope(unit, &unit->scopes[0]);
-}

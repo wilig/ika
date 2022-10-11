@@ -3,13 +3,10 @@
 #include "../lib/allocator.h"
 #include "../lib/dynarray.h"
 
+#include "errors.h"
 #include "parser.h"
 #include "tokenize.h"
 #include "types.h"
-
-// TODO: Handle vars in expressions
-// TODO: Handle comma expressions i.e. (x, y)
-// TODO: First pass at error handling
 
 ast_node_t *parse_node(parser_state_t *);
 ast_node_t *parse_expr(parser_state_t *);
@@ -144,6 +141,8 @@ ast_node_t *parse_literal(parser_state_t *state) {
     return parse_bool_literal(state);
   case ika_str_literal:
     return parse_str_literal(state);
+  case ika_identifier:
+    return parse_symbol(state);
   default: {
     return NULL;
   }
@@ -350,7 +349,6 @@ ast_node_t *parse_fn(parser_state_t *state) {
   if (token->type == ika_keyword_fn) {
     advance_token_pointer(state);
     ast_node_t *symbol = parse_symbol(state);
-    printf("parse_fn: %p\n", symbol);
     if (symbol) {
       dynarray *decls = dynarray_init(state->allocator, sizeof(ast_node_t));
       dynarray *returns = dynarray_init(state->allocator, sizeof(ast_node_t));
@@ -383,13 +381,32 @@ ast_node_t *parse_fn(parser_state_t *state) {
               advance_token_pointer(state);
             } while (expect_and_consume(state, ika_comma));
             if (!expect_and_consume(state, ika_paren_close)) {
-              next_token = get_token(state);
-              printf("Syntax error, expected a closing parenthesis, got %d\n",
-                     next_token->type);
-              exit(-1);
+              token_t *err_token = get_token(state);
+              syntax_error_t err = {.column = err_token->position.column,
+                                    .line = err_token->position.line,
+                                    .pass = parsing_pass,
+                                    .message = "Missing closing parenthesis",
+                                    .hint = "Add a closing parenthesis"};
+              dynarray_append(state->errors, &err);
+              return NULL;
             }
           } else {
-            // Error handling
+            token_t *err_token = get_token(state);
+            syntax_error_t err = {
+                .column = err_token->position.column,
+                .line = err_token->position.line,
+                .pass = parsing_pass,
+                .message = "Missing opening parenthesis",
+                .hint =
+                    "Functions require a parenthesised parameter list even if it's empty.\n \
+              \n\n \
+              Examples:\n \
+              \tfn myfunc(): int \n\
+              \tfn myfunc(x: int): int\n\
+              \tThe return type is optional, and if omitted defaults to void\n \
+              \tfn myfunc()\n"};
+            dynarray_append(state->errors, &err);
+            return NULL;
           }
         }
         ast_node_t *block = parse_block(state);
@@ -430,8 +447,17 @@ ast_node_t *parse_if_statement(parser_state_t *state) {
           if (else_block) {
             node->if_statement.else_block = else_block;
           } else {
-            printf("Expecting else block at %d, %d.", token->position.line,
-                   token->position.column);
+            token_t *err_token = get_token(state);
+            syntax_error_t err = {
+                .column = err_token->position.column,
+                .line = err_token->position.line,
+                .pass = parsing_pass,
+                .message = "Missing block for else clause",
+                .hint = "Else clauses require blocks of code to be executed \
+                       if the else branch is choosen. \n\n \
+                       Example:\n\n \
+                       if (false) { x := 100} else { x:= 200 }\n"};
+            dynarray_append(state->errors, &err);
           }
         }
         return node;
@@ -457,10 +483,13 @@ ast_node_t *parse_return(parser_state_t *state) {
           dynarray_append(returns, expr);
       } while (expect_and_consume(state, ika_comma));
       if (!expect_and_consume(state, ika_paren_close)) {
-        next_token = get_token(state);
-        printf("Syntax error, expected a closing parenthesis, got %d\n",
-               next_token->type);
-        exit(-1);
+        token_t *err_token = get_token(state);
+        syntax_error_t err = {.column = err_token->position.column,
+                              .line = err_token->position.line,
+                              .pass = parsing_pass,
+                              .message = "Missing closing around return type",
+                              .hint = ""};
+        dynarray_append(state->errors, &err);
       }
     } else {
       ast_node_t *expr = parse_expr(state);
@@ -484,9 +513,6 @@ ast_node_t *parse_node(parser_state_t *state) {
     advance_token_pointer(state);
     return NULL;
   }
-  node = parse_expr(state);
-  if (node)
-    return node;
   node = parse_assignment(state);
   if (node)
     return node;
@@ -505,26 +531,35 @@ ast_node_t *parse_node(parser_state_t *state) {
   node = parse_return(state);
   if (node)
     return node;
-  token_t *errorneous_token = get_token(state);
-  printf("Unexpected token '%.*s' on line %i\n", errorneous_token->value.length,
-         errorneous_token->value.ptr, errorneous_token->position.line);
+  token_t *err_token = get_token(state);
+  syntax_error_t err = {.column = err_token->position.column,
+                        .line = err_token->position.line,
+                        .pass = parsing_pass,
+                        .message = cstr("Unexpected token"),
+                        .hint = ""};
+  dynarray_append(state->errors, &err);
   // Skip the problematic token
   advance_token_pointer(state);
   return NULL;
 }
 
-ast_node_t *parser_parse(compilation_unit_t *unit) {
-  parser_state_t parser_state = (parser_state_t){
-      .current_token = 0, .tokens = unit->tokens, .allocator = unit->allocator};
-  ast_node_t *root = make_node(unit->allocator);
+ast_node_t *parser_parse(allocator_t allocator, dynarray *tokens,
+                         dynarray *errors) {
+  parser_state_t parser_state = (parser_state_t){.current_token = 0,
+                                                 .tokens = tokens,
+                                                 .allocator = allocator,
+                                                 .errors = errors};
+
+  ast_node_t *root = make_node(allocator);
   root->starting_token = get_token(&parser_state);
   root->type = ast_block;
-  root->block.nodes = *dynarray_init(unit->allocator, sizeof(ast_node_t));
+  root->block.nodes = *dynarray_init(allocator, sizeof(ast_node_t));
   while (parser_state.current_token < parser_state.tokens->count) {
     ast_node_t *node = parse_node(&parser_state);
     // Node parsing can return null in cases like comments, etc/
     if (node)
       dynarray_append(&root->block.nodes, node);
   }
+
   return root;
 }

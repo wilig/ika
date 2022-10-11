@@ -108,37 +108,7 @@ typedef struct {
   allocator_t allocator;
   uint32_t current_token;
   dynarray *tokens;
+  dynarray *errors;
 } parser_state_t;
 
-typedef struct scope_t {
-  allocator_t allocator;
-  str name;
-  block_t *block;
-  int total_decls;
-  symtbl_t *symbol_table;
-  struct scope_t *parent;
-  struct scope_t *children;
-  size_t number_of_children;
-} scope_t;
-
-typedef struct {
-  allocator_t allocator;
-  str src_file;
-
-  str *buffer;
-  dynarray *tokens;
-  int current_token_idx;
-
-  str *namespace_name;
-  scope_t *scopes;
-  scope_t *current_scope;
-
-  // TODO Add error arrays for warnings, and errors.
-} compilation_unit_t;
-
-ast_node_t *parser_parse(compilation_unit_t *);
-
-ast_node_t *parse_node(parser_state_t *);
-
-void new_compilation_unit(allocator_t, char *, str *, dynarray *,
-                          compilation_unit_t *);
+ast_node_t *parser_parse(allocator_t, dynarray *tokens, dynarray *errors);

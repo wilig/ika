@@ -3,13 +3,13 @@
 #include "allocator.h"
 
 typedef struct str {
-  char *ptr;
+  const char *ptr;
   uint32_t length;
 } str;
 
-str cstr(char *);
+str cstr(const char *);
 
-str cstr_from_char_with_length(char *, int);
+str cstr_from_char_with_length(const char *, int);
 
 int str_len(str);
 

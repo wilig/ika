@@ -1,0 +1,68 @@
+#+title: A little language survey
+
+* Clojure
+ A very interesting Lisp dialect that leverages the JVM.
+
+** Pros
+    - From a purely syntatic perspective breaking up the paren monotony with some other bracket pairs was a good idea.
+    - Software transactional memory, treats memory like a database.  (I've never had a use case for it, but it's cool.)
+    - Structural sharing.  (When a change to datastructure is made, keep all the parts that didn't change, then point to the changed stuff)
+    - Destructing bind.  Once you've pull apart a complex datastructure with destructuring it's hard to go back.
+
+** Cons
+    - The error messages.  Probably the worst thing about the language by a good margin.
+    - Painful startup time.  Not a problem for long running processes, but it's painful for other use cases.
+    - No reader macros.  Honestly this is both a pro and a con.  But from a classic lisp perspective..
+
+* Go
+
+** Pros
+- Performance  Go is really quite fast.  Not quite C/Rust/Zig/Odin fast, but more then fast enough for a broad swath of problem domains.
+- Compile time!  Go feels instant, which is a really nice UX
+- Simplicity (pre generics) Very quick to learn with a nicely curated set of features
+- Good concurrency story.  Go routines allow mere mortals to write decently concurrent programs.
+- Very familiar syntax, with enforced formatting.
+- Go get built into the language  (Package manager)
+- Excellent and large standard library
+- Easy cross compilation
+
+** Cons
+- Not a fan of the error handling, but it's better then exceptions.
+- Garbage collected.  Really only a con if your use case is sensitive to it.
+- GOPATH crap
+
+* Java
+TODO
+
+* Forth
+TODO
+
+* Python
+TODO
+
+* Rust
+TODO
+
+* IO
+TODO
+
+* Factor
+TODO
+
+* C
+TODO
+
+* Odin
+TODO
+
+* Zig
+TODO
+
+* Ruby
+TODO
+
+* Crystal
+TODO
+
+* JAI
+One day..

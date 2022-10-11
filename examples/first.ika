@@ -21,13 +21,25 @@ simple_precedence := 10 - 5 * 3 - 2
 simple_precedence_with_parens := (10 - 5) * 3 / 2 + 50 / 4
 single_expression := (100 + 100)
 
+// Expressions with identifiers
+{
+    x:= 5
+
+    fourtyfive := 4 * x
+}
+
 // This defines an inner scope
 {
     let my_const := 45
     another_var : u32 = 100
 }
 
-// If statement with blocks
+// If statement single block
+if (false) {
+  let t := true
+}
+
+// If statement with else block
 if (10 + 1 == 11) {
   let bang := 100
 } else {
@@ -41,9 +53,9 @@ fn nothing() {
 
 // Simple function that returns an int
 fn double(x: u64): u64 {
-  return 2
+  return x * 2
 }
 
-fn swap(x: u16, y: u16): (u16, u16) {
-  return 42
+fn multiply(x: u16, y: u16,): u32 {
+  return x * y
 }
