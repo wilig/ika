@@ -3,8 +3,10 @@
 #include "../lib/allocator.h"
 #include "../lib/dynarray.h"
 
+#include "ast.h"
 #include "errors.h"
 #include "parser.h"
+#include "symbol_table.h"
 #include "tokenize.h"
 #include "types.h"
 
@@ -323,14 +325,22 @@ ast_node_t *parse_decl(parser_state_t *state) {
   return NULL;
 }
 
+// TODO: Maybe rename block to scope
 ast_node_t *parse_block(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
   if (token->type == ika_brace_open) {
+    // Make a new symbol table for the block/scope.  Store it in the parser
+    // state and link it to the block/scope.
+    symbol_table_t *symbol_table =
+        make_symbol_table(state->allocator, state->current_scope);
+    state->current_scope = symbol_table;
+
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
     node->type = ast_block;
     node->block.nodes = *dynarray_init(state->allocator, sizeof(ast_node_t));
+    node->block.symbol_table = symbol_table;
     advance_token_pointer(state); // Move past opening brace
     while (get_token(state)->type != ika_brace_close) {
       ast_node_t *child_node = parse_node(state);
@@ -550,9 +560,13 @@ ast_node_t *parser_parse(allocator_t allocator, dynarray *tokens,
                                                  .allocator = allocator,
                                                  .errors = errors};
 
+  symbol_table_t *symbol_table = make_symbol_table(allocator, NULL);
+  parser_state.current_scope = symbol_table;
+
   ast_node_t *root = make_node(allocator);
   root->starting_token = get_token(&parser_state);
   root->type = ast_block;
+  root->block.symbol_table = symbol_table;
   root->block.nodes = *dynarray_init(allocator, sizeof(ast_node_t));
   while (parser_state.current_token < parser_state.tokens->count) {
     ast_node_t *node = parse_node(&parser_state);

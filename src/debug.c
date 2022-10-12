@@ -1,7 +1,6 @@
 #include "../lib/hashtbl.h"
 
 #include "debug.h"
-#include "symtbl.h"
 #include "tokenize.h"
 
 /* void debug_print_parsed_scope(compilation_unit_t *, scope_t *); */

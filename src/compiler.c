@@ -1,5 +1,7 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #include "../lib/log.h"
 
@@ -8,6 +10,12 @@
 #include "parser.h"
 #include "print.h"
 #include "tokenize.h"
+
+int64_t time_in_ms() {
+  struct timespec now;
+  timespec_get(&now, TIME_UTC);
+  return ((int64_t)now.tv_sec) * 1000 + ((int64_t)now.tv_nsec) / 1000000;
+}
 
 compilation_unit_t *new_compilation_unit(allocator_t allocator,
                                          char *filename) {
@@ -60,14 +68,22 @@ compilation_unit_t *new_compilation_unit(allocator_t allocator,
 void compile(compilation_unit_t *unit) {
   dynarray *errors = dynarray_init(unit->allocator, sizeof(syntax_error_t));
 
+  int64_t start = time_in_ms();
+  printf("Tokenization pass ...");
   dynarray *tokens = tokenizer_scan(unit->allocator, *unit->buffer, errors);
-  printf("TOKENS:\n");
+  printf(" %li ms\n", time_in_ms() - start);
+
+  /* Print tokens
   for (int i = 0; i < tokens->count; i++) {
     tokenizer_print_token(stdout, dynarray_get(tokens, i));
     printf("\n");
   }
+  */
 
+  start = time_in_ms();
+  printf("Parser pass ...");
   ast_node_t *root = parser_parse(unit->allocator, tokens, errors);
+  printf(" %li ms\n", time_in_ms() - start);
 
   if (errors->count > 0) {
     errors_display_parser_errors(errors, *unit->buffer);
