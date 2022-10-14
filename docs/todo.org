@@ -2,8 +2,14 @@
 * DONE Fix parsing
 * DONE Have tokenizer add line/column to tokens
 * DONE Add symbol table logic to parsing
-* TODO operator precedence
-* TODO constant folding?
+* DONE possibly convert to pika parser
+* DONE operator precedence
+* DONE unify error storage and reporting
+* DONE fix tokenizer to check for keywords/types as part of identifier processing
+* TODO Symbol table pass
+** TODO Add a scope for function parameters
+* TODO Typing pass
+* TODO constant folding
 * TODO Add semantic analysis
 ** TODO prevent assignment to constants
 ** TODO prevent using undeclared identifiers

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "allocator.h"
-#include "tokenize.h"
+#include "str.h"
 
 #define DEFAULT_CAPACITY 100
 
@@ -14,7 +14,7 @@ typedef struct str_entry_t {
 
 typedef struct hashtbl_str_keys_t {
   str **keys;
-  size_t count;
+  uint32_t count;
 } hashtbl_str_keys_t;
 
 typedef struct hashtbl_str_t {

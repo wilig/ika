@@ -1,7 +1,7 @@
 #pragma once
 
-#include "defines.h"
-#include "stdbool.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 // 128k chunks
 #define DEFAULT_CHUNK_SIZE 128 * 1024

@@ -1,9 +1,11 @@
-#include "symtbl.h"
-#include "allocator.h"
-#include "hashtbl.h"
-#include "log.h"
-#include "parser.h"
-#include "stdlib.h"
+#include <stdlib.h>
+
+#include "../lib/allocator.h"
+#include "../lib/hashtbl.h"
+#include "../lib/log.h"
+
+#include "errors.h"
+#include "symbol_table.h"
 #include "types.h"
 
 size_t determine_byte_size(e_ika_type type) {
@@ -27,68 +29,70 @@ size_t determine_byte_size(e_ika_type type) {
   }
 }
 
-symtbl_t *symtbl_init(allocator_t allocator, scope_t *scope) {
-  symtbl_t *symtbl = allocator_alloc_or_exit(allocator, sizeof(symtbl_t));
-  symtbl->allocator = allocator;
-  symtbl->scope = scope;
+symbol_table_t *make_symbol_table(allocator_t allocator,
+                                  symbol_table_t *parent) {
+  symbol_table_t *symbol_table =
+      allocator_alloc_or_exit(allocator, sizeof(symbol_table_t));
+  symbol_table->allocator = allocator;
+  symbol_table->parent = parent;
 
   // Build hashtable
   hashtbl_str_t *table = hashtbl_str_init(allocator);
-  symtbl->table = table;
+  symbol_table->table = table;
 
-  return symtbl;
+  return symbol_table;
 }
 
 // Lookup the given symbol in the symbol table, if it's not found in the
 // current scope, traverse back up the chain trying to resolve it.
-symtbl_entry_t *symtbl_lookup(symtbl_t *t, str key) {
+symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, str key) {
   str_entry_t *entry = hashtbl_str_lookup(t->table, key);
   if (entry) {
-    return (symtbl_entry_t *)entry->value;
-  } else if (t->scope->parent) { // Traverse up the chain trying to resolve
-                                 // the symbol
+    return (symbol_table_entry_t *)entry->value;
+  } else if (t->parent) { // Traverse up the chain trying to resolve
+                          // the symbol
     printf("Traversing to parent\n");
-    return symtbl_lookup(t->scope->parent->symbol_table, key);
+    return symbol_table_lookup(t->parent, key);
   }
   return NULL;
 }
 
-void symtbl_insert(symtbl_t *t, str name, e_ika_type type, bool constant,
-                   size_t line, size_t column) {
-  symtbl_entry_t *entry =
-      allocator_alloc_or_exit(t->allocator, sizeof(symtbl_entry_t));
+IKA_ERROR symbol_table_insert(symbol_table_t *t, str name, e_ika_type type,
+                              bool constant, uint32_t line, uint32_t column) {
+  symbol_table_entry_t *entry =
+      allocator_alloc_or_exit(t->allocator, sizeof(symbol_table_entry_t));
   str *entry_name = allocator_alloc_or_exit(t->allocator, sizeof(str));
   str_copy(t->allocator, name, entry_name);
-  entry->name = entry_name;
+  entry->identifer = entry_name;
   entry->bytes = determine_byte_size(type);
   entry->type = type;
   entry->constant = constant;
   entry->line = line;
   entry->column = column;
-  entry->reference_count = 0;
   if (!hashtbl_str_insert(
           t->table,
           (str_entry_t){.key = name, .valid = true, .value = entry})) {
-    log_error("Redefinition of {s} at line {d} column {d}", name, line, column);
-    exit(-1);
+    // The identifier is already in the symbol table.  That's an error.
+    return VARIABLE_REDEFINITION_ERROR;
   };
+  return SUCCESS;
 }
 
-void symtbl_add_reference(symtbl_t *t, str key, size_t line, size_t column) {
-  symtbl_entry_t *entry = symtbl_lookup(t, key);
+void symbol_table_add_reference(symbol_table_t *t, str key, uint32_t line,
+                                uint32_t column) {
+  symbol_table_entry_t *entry = symbol_table_lookup(t, key);
   if (entry) {
     symbol_table_reference_t *ref =
         allocator_alloc_or_exit(t->allocator, sizeof(symbol_table_reference_t));
     ref->column = column;
     ref->line = line;
-    entry->references[entry->reference_count++] = ref;
   } else {
     log_error("Undefined symbol {s} referenced on line {d} column {d}", key,
               line, column);
   }
 }
 
-static void symtbl_print_fill_space(int num_spaces) {
+static void symbol_table_print_fill_space(int num_spaces) {
   for (int i = 0; i < num_spaces; i++) {
     printf(" ");
   }
@@ -105,26 +109,26 @@ int count_digits(size_t n) {
   return count;
 }
 
-void symtbl_dump(symtbl_t *t) {
+void symbol_table_dump(symbol_table_t *t) {
   printf("--------------------------------------------------------------------"
          "----------\n");
-  printf("| Name                                 | Type               | Line  "
+  printf("| Name                                 | Type               | Line "
          "| Column |\n");
   printf("|--------------------------------------|--------------------|-------"
          "|--------|\n");
 
   hashtbl_str_keys_t ht_keys = hashtbl_str_get_keys(t->table);
   for (int i = 0; i < ht_keys.count; i++) {
-    symtbl_entry_t *entry = symtbl_lookup(t, *ht_keys.keys[i]);
-    printf("| %.*s", entry->name->length, entry->name->ptr);
-    symtbl_print_fill_space(37 - entry->name->length);
-    str type_name = tokenizer_get_token_type_name(entry->type);
+    symbol_table_entry_t *entry = symbol_table_lookup(t, *ht_keys.keys[i]);
+    printf("| %.*s", entry->identifer->length, entry->identifer->ptr);
+    symbol_table_print_fill_space(37 - entry->identifer->length);
+    str type_name = cstr(ika_base_type_table[entry->type].label);
     printf("| %s", type_name.ptr);
-    symtbl_print_fill_space(19 - type_name.length);
-    printf("| %li", entry->line);
-    symtbl_print_fill_space(6 - count_digits(entry->line));
-    printf("| %li", entry->column);
-    symtbl_print_fill_space(7 - count_digits(entry->column));
+    symbol_table_print_fill_space(19 - type_name.length);
+    printf("| %i", entry->line);
+    symbol_table_print_fill_space(6 - count_digits(entry->line));
+    printf("| %i", entry->column);
+    symbol_table_print_fill_space(7 - count_digits(entry->column));
     printf("|\n");
   }
   printf("--------------------------------------------------------------------"

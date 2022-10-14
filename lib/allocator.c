@@ -7,12 +7,9 @@
 
 static allocator_memory_chunk_t *
 linear_allocator_new_chunk(uint64_t amount_to_alloc) {
-  printf("\n\n############################# allocating new chunk: %li bytes\n",
-         amount_to_alloc);
   allocator_memory_chunk_t *new_chunk =
       calloc(sizeof(allocator_memory_chunk_t), 1);
   int8_t *mem_ptr = calloc(amount_to_alloc, 1);
-  printf("Memory range: %p - %p\n\n", mem_ptr, mem_ptr + amount_to_alloc);
   if (new_chunk != NULL && mem_ptr != NULL) { // Success
     new_chunk->mem_ptr = mem_ptr;
     new_chunk->valid = true;
@@ -33,7 +30,6 @@ allocated_memory linear_allocator_alloc(allocator_t allocator,
     allocator_memory_chunk_t *chunk = la->current_chunk;
 
     // Handle overflow
-    printf("bytes to alloc: %li\n", bytes_to_alloc);
     if (bytes_to_alloc > chunk->free_space) {
       chunk = bytes_to_alloc > la->chunk_size
                   ? linear_allocator_new_chunk(bytes_to_alloc)

@@ -1,0 +1,148 @@
+// A single line comment in Ika
+ns main;
+
+let io = import("io");
+let allocator = import("allocator");
+
+io.stdout.write("hello\n");
+
+let print = io.stdout.write;
+print("hello\n");
+
+
+// This defines a new type
+typedef my_data {
+  u32: x,
+  u32: y,
+  u32: z,
+}
+
+fn to_string(my_data): str {
+  return str(x)+", "+str(y)+", "+str(z)
+}
+
+io.stdout.register_printer(my_data, to_string);
+print("my_data: {}", my_data);
+
+behavior stringable {
+  to_string(i any): str
+}
+
+
+
+
+
+instance_of_my_data : ^my_data = allocator.new(my_data)
+defer allocator.delete(instance_of_my_data)
+db: [100]my_data
+append(db, instance_of_my_data^)
+
+// Perhaps use compile time
+
+impl to_string my_data {
+
+}
+
+let stdout := 1;
+let stderr := 2;
+let stdin  := 0;
+
+let floaty := 1.21;
+
+let truthy := true;
+let falsey := false;
+
+// This should cause an duplicate identifier error
+// let stderr := "hello?";
+
+let weird : u64 = 100 * 340189;
+let simple_precedence := 5 + 10 * 2 / 5;
+//let my_int := ((7 + 10) * 30) - 100);
+// let paren_precendence := (5 + 10) * 2 / 5;
+
+var name := "This is a string for the name var";
+var multiplier := 100;
+
+var result := 5 * multiplier;
+
+if(stdout == 1) {
+  result = 100;
+  // This should cause an error because it's const
+  weird -= 1000;
+  // This should cause an error because it's undefined
+  undef = 1.1;
+} else {
+  result = 200;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+var name := "This is a string for the name var";
+var multiplier := 100;
+
+var result := 5 * multiplier ;
+
+Start small stupid.
+
+
+/* A main function is a good idea
+ *
+ * See this one here:
+*/
+fn main() void {
+   io.writeln(io.stdout, "Hello squidlets");
+   io.writeln(io.stdout, "Hello\n\t\t\"squidlets\"");
+}
+
+var empty_string := "";
+var hex_num : u64 = 0xFEEDDEAD;
+var big_decimal := 10000000;
+var float_one := 1.003;
+var float_two := 1.575E1;
+var float_three := 1575e-2;
+var float_four := -2.5e-3;
+
+/*  Multi-line comment
+fn match_fn(u64 x) void {
+   match x {
+     1 -> writeln(io.stdout, "You sent the number 1"),
+     2 -> writeln(io.stdout, "You send the number 2"),
+     any -> writeln(io.stdout, "Well it wasn't the number 1 or 2")
+   }
+}
+
+    /* Nested multiline comment on one line */
+
+fn maths() !u64 {
+   let x := 5;
+   let y := 10 * 5;
+   var v : u64 = 100 * y;
+
+   y = 1; // Should fail
+   y := 1; // Should also fail
+   v = 10; // Should reassign v
+   return v;
+}
+
+
+test "basic testing is part of the language" {
+
+}
+*/
+*/

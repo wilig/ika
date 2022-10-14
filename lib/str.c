@@ -3,14 +3,14 @@
 #include "stdlib.h"
 #include <string.h>
 
-str cstr(char *raw_chars) {
+str cstr(const char *raw_chars) {
   int length = 0;
   while (raw_chars[length] != '\0')
     length++;
   return (str){.ptr = raw_chars, .length = length};
 }
 
-str cstr_from_char_with_length(char *raw_chars, int length) {
+str cstr_from_char_with_length(const char *raw_chars, int length) {
   return (str){.ptr = raw_chars, .length = length};
 }
 

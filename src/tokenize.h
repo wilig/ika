@@ -1,14 +1,13 @@
 #pragma once
 
-#include "allocator.h"
-#include "defines.h"
-#include "dynarray.h"
-#include "str.h"
-#include "types.h"
-
 #include <stdio.h>
 
-#define TOKEN_BUCKET_SIZE 1000
+#include "../lib/allocator.h"
+#include "../lib/dynarray.h"
+#include "../lib/str.h"
+
+#include "defines.h"
+#include "types.h"
 
 typedef struct {
   uint32_t line;
@@ -25,10 +24,11 @@ typedef struct {
   uint32_t pos;
   str source;
   allocator_t allocator;
+  dynarray *errors;
 } tokenizer_input_stream;
 
 // An array of tokens
-dynarray *tokenizer_scan(tokenizer_input_stream *);
+dynarray *tokenizer_scan(allocator_t allocator, str source, dynarray *errors);
 
 // Debugging stuff
 void tokenizer_print_token(FILE *, void *);

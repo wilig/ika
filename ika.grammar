@@ -1,0 +1,14 @@
+# This is a quasi grammar file, it's not currently used for anything other then
+# guiding the implementation of the parser.
+
+statement -> assignment | expr | if_statement | let_statement | block | function | return
+expr -> expr '+' term | expr '-' term | term
+term -> term '*' symbol | term '/' symbol | symbol
+symbol -> NAME | NUMBER | STRING | '(' expr ')'
+assignment -> NAME ':' '=' expr | target ':' ika_type '=' expr
+if_statement -> 'if' '(' expr ')' block | 'if' '(' expr ')' block 'else' (if_statement | block)
+let_statement -> 'let' assignment
+function -> 'fn' NAME '(' [decl | decl{"," decl}] ')' [':' ika_type | ':' '(' ika_type{"," ika_type} ')'] block
+decl -> NAME ':' ika_type
+block -> '{' statement '}'
+return -> 'return' [ expr | '(' expr{"," expr} ')' ]

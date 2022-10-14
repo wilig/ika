@@ -1,8 +1,8 @@
 #pragma once
 
-#include "hashtbl.h"
-#include "tokenize.h"
 #include <stdio.h>
+
+#include "hashtbl.h"
 
 #define ANSI_ESCAPE_RED cstr("\x1b[31m")
 #define ANSI_ESCAPE_YELLOW cstr("\x1b[33m")

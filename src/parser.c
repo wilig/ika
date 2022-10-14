@@ -1,446 +1,611 @@
+#include <assert.h>
+
+#include "../lib/allocator.h"
+#include "../lib/dynarray.h"
+
+#include "ast.h"
+#include "errors.h"
 #include "parser.h"
-#include "allocator.h"
-#include "dynarray.h"
-#include "hashtbl.h"
-#include "log.h"
-#include "symtbl.h"
+#include "symbol_table.h"
 #include "tokenize.h"
 #include "types.h"
-#include <assert.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-void new_scope(allocator_t, str name, scope_t *, scope_t *);
+// TODO: Push scope/Pop scope ?
+//
+ast_node_t *parse_node(parser_state_t *);
+ast_node_t *parse_expr(parser_state_t *);
 
-// TODO: Move to passing the stmt/expression to the function
-// Forward declaration
-scope_t *parse_scope(compilation_unit_t *, str);
-void parser_print_scope(compilation_unit_t *, scope_t *);
-
-typedef bool (*type_tester_ptr_t)(e_ika_type);
-
-void parse_expression(compilation_unit_t *, expr_t *);
-void parse_simple_expression(compilation_unit_t *, expr_t *);
-
-token_t *get_token(compilation_unit_t *unit) {
-  return dynarray_get(unit->tokens, unit->current_token_idx++);
+void advance_token_pointer(parser_state_t *state) {
+  state->current_token++;
+  assert(state->current_token <= state->tokens->count);
 }
 
-void rewind_tokens(compilation_unit_t *unit, int i) {
-  unit->current_token_idx -= i;
+void rollback_token_pointer(parser_state_t *state, uint32_t token_position) {
+  assert(token_position <= state->tokens->count);
+  state->current_token = token_position;
 }
 
-void skip_tokens(compilation_unit_t *unit, int i) {
-  unit->current_token_idx += i;
+token_t *get_token(parser_state_t *state) {
+  return (token_t *)dynarray_get(state->tokens, state->current_token);
 }
 
-token_t *peek_current_token(compilation_unit_t *unit) {
-  return dynarray_get(unit->tokens, unit->current_token_idx);
+bool is_comment(parser_state_t *state) {
+  token_t *current_token =
+      (token_t *)dynarray_get(state->tokens, state->current_token);
+  return current_token->type == ika_comment;
 }
 
-token_t *peek_next_token(compilation_unit_t *unit) {
-  return dynarray_get(unit->tokens, unit->current_token_idx + 1);
-}
-
-bool a_colon(e_ika_type type) { return type == ika_colon; }
-bool a_semi_colon(e_ika_type type) { return type == ika_semi_colon; }
-
-bool an_untyped_assign(e_ika_type type) { return type == ika_untyped_assign; }
-
-bool an_assign(e_ika_type type) { return type == ika_assign; }
-
-bool an_equal_sign(e_ika_type type) { return type == ika_eql; }
-
-bool an_operator(e_ika_type type) {
-  return type > __ika_operators_start && type < __ika_operators_end;
-}
-
-bool a_type(e_ika_type type) {
-  return type > __ika_types_start && type < __ika_types_end;
-}
-
-bool a_literal(e_ika_type type) {
-  return type > __ika_literal_start && type < __ika_literal_end;
-}
-
-bool an_identifer(e_ika_type type) { return type == ika_identifier; }
-
-bool is(type_tester_ptr_t fn, token_t *t) { return fn(t->type); }
-
-void expect_and_consume(compilation_unit_t *unit, e_ika_type expected_type) {
-  if (get_token(unit)->type != expected_type) {
-    log_error("expected type: {s}, got type: {s}\n",
-              tokenizer_get_token_type_name(expected_type),
-              tokenizer_get_token_type_name(get_token(unit)->type));
-    assert(false);
-  }
-}
-
-bool conform(compilation_unit_t *unit, type_tester_ptr_t funs[], size_t total) {
-  for (int i = 0; i < total; i++) {
-    if (!(funs[i])(get_token(unit)->type)) {
-      rewind_tokens(unit, i + 1);
-      return false;
-    }
-  }
-  rewind_tokens(unit, total);
-  return true;
-}
-
-bool is_one_of(e_ika_type t, e_ika_type to_check[]) {
-  int total = sizeof(&to_check) / sizeof(t);
-  for (int i = 0; i < total; i++) {
-    if (t == to_check[i])
-      return true;
+bool expect_and_consume(parser_state_t *state, e_ika_type type) {
+  token_t *token = get_token(state);
+  if (token->type == type) {
+    state->current_token += 1;
+    return true;
   }
   return false;
 }
 
-expr_t *new_expr(allocator_t allocator) {
-  return allocator_alloc_or_exit(allocator, sizeof(expr_t));
-}
-
-stmt_t *make_stmt(allocator_t allocator) {
-  return allocator_alloc_or_exit(allocator, sizeof(stmt_t));
-}
-
-static void parse_literal(compilation_unit_t *unit, expr_t *expr) {
-  token_t *t = get_token(unit);
-  assert(a_literal(t->type));
-  expr->type = literal_value;
-  expr->literal.start_token = unit->current_token_idx;
-  expr->literal.end_token = unit->current_token_idx;
-  expr->literal.type = t->type;
-  expr->literal.value = t;
-}
-
-static void parse_identifier(compilation_unit_t *unit, expr_t *expr) {
-  token_t *t = get_token(unit);
-  assert(t->type == ika_identifier);
-  expr->type = identifier;
-  expr->identifier.start_token = unit->current_token_idx;
-  expr->identifier.end_token = unit->current_token_idx;
-  expr->identifier.type = t->type;
-  expr->identifier.value = t;
-}
-
-static void parse_binary(compilation_unit_t *unit, expr_t *expr) {
-  expr->type = binary_expr;
-  expr->binary.start_token = unit->current_token_idx;
-
-  expr->binary.left = new_expr(unit->allocator);
-  parse_simple_expression(unit, expr->binary.left);
-
-  expr->binary.op = get_token(unit);
-  assert(expr->binary.op->type > __ika_operators_start &&
-         expr->binary.op->type < __ika_operators_end);
-
-  expr->binary.right = new_expr(unit->allocator);
-  parse_expression(unit, expr->binary.right);
-
-  expr->binary.end_token = unit->current_token_idx;
-}
-
-void parse_simple_expression(compilation_unit_t *unit, expr_t *expr) {
-  token_t *token = peek_current_token(unit);
-
-  if (a_literal(token->type) == true) {
-    printf("parsing simple literal\n");
-    parse_literal(unit, expr);
-  } else if (an_identifer(token->type)) {
-    printf("parsing simple identifier\n");
-    parse_identifier(unit, expr);
-  } else {
-    printf(
-        "Was expecting a literal, identifer, or binary expression got a %s\n",
-        tokenizer_get_token_type_label(token).ptr);
-    assert(false);
+void add_to_symbol_table(parser_state_t *state, str identifier, e_ika_type type,
+                         bool constant, token_t *token) {
+  if (symbol_table_insert(state->current_scope, identifier, type, false,
+                          token->position.line,
+                          token->position.column) != SUCCESS) {
+    syntax_error_t err = {
+        .column = token->position.column,
+        .line = token->position.line,
+        .pass = parsing_pass,
+        .message = cstr("Redefinition of existing identifier"),
+        .hint = cstr("Try using a different name or removing the duplicate.")};
+    dynarray_append(state->errors, &err);
   }
 }
 
-void parse_expression(compilation_unit_t *unit, expr_t *expr) {
-  token_t *nt = peek_next_token(unit);
-  token_t *token = peek_current_token(unit);
+ast_node_t *make_node(allocator_t allocator) {
+  ast_node_t *node = allocator_alloc_or_exit(allocator, sizeof(ast_node_t));
+  return node;
+}
 
-  if (an_operator(nt->type)) {
-    printf("parsing binary expression\n");
-    parse_binary(unit, expr);
-  } else {
-    parse_simple_expression(unit, expr);
+ast_node_t *parse_int_literal(parser_state_t *state) {
+  token_t *token = get_token(state);
+  if (token->type == ika_int_literal || token->type == ika_num_literal) {
+    ast_node_t *node = make_node(state->allocator);
+    node->starting_token = token;
+    node->type = ast_int_literal;
+    node->literal.integer_value = atoi(token->value.ptr);
+    node->total_tokens = 1;
+    advance_token_pointer(state);
+    return node;
   }
+  return NULL;
 }
 
-void parse_namespace_stmt(compilation_unit_t *unit, stmt_t *stmt) {
-  token_t *ns_token = get_token(unit);
-
-  // Sanity check
-  assert(ns_token != NULL);
-  assert(ns_token->type == ika_keyword_ns);
-  assert(peek_current_token(unit)->type == ika_identifier);
-
-  stmt->type = namespace_statement;
-  stmt->namespace_statement.start_token = unit->current_token_idx;
-  stmt->namespace_statement.nameToken = get_token(unit);
-
-  expect_and_consume(unit, ika_semi_colon);
-
-  stmt->namespace_statement.end_token = unit->current_token_idx;
-}
-
-void parse_assignment_stmt(compilation_unit_t *unit, stmt_t *stmt) {
-  type_tester_ptr_t assignment[] = {&an_identifer, &an_operator};
-  assert(conform(unit, assignment, 2));
-
-  stmt->type = assignment_statement;
-  stmt->assignment_statement.start_token = unit->current_token_idx;
-  stmt->assignment_statement.identifier = get_token(unit);
-  stmt->assignment_statement.op = get_token(unit);
-  stmt->assignment_statement.expr = new_expr(unit->allocator);
-  parse_expression(unit, stmt->assignment_statement.expr);
-  expect_and_consume(unit, ika_semi_colon);
-}
-
-void parse_let_stmt(compilation_unit_t *unit, stmt_t *stmt) {
-  token_t *let_token = get_token(unit);
-  // Sanity checks
-  assert(let_token != NULL);
-  assert(let_token->type == ika_keyword_let);
-
-  stmt->type = let_statement;
-  stmt->let_statement.start_token =
-      unit->current_token_idx - 1; // include the let token_t
-  stmt->let_statement.expr = new_expr(unit->allocator);
-
-  // Two possible let syntax variants
-  type_tester_ptr_t inferred[] = {&an_identifer, &an_untyped_assign};
-  type_tester_ptr_t explicitly_typed[] = {&an_identifer, &a_colon, &a_type,
-                                          &an_assign};
-  if (conform(unit, inferred, 2)) {
-    stmt->let_statement.identifier = get_token(unit);
-    stmt->let_statement.explicit_type = NULL;
-    expect_and_consume(unit, ika_untyped_assign);
-    parse_expression(unit, stmt->let_statement.expr);
-    expect_and_consume(unit, ika_semi_colon);
-  } else if (conform(unit, explicitly_typed, 4)) {
-    stmt->let_statement.identifier = get_token(unit);
-    expect_and_consume(unit, ika_colon);
-    stmt->let_statement.explicit_type = get_token(unit);
-    expect_and_consume(unit, ika_assign);
-    parse_expression(unit, stmt->let_statement.expr);
-    expect_and_consume(unit, ika_semi_colon);
-  } else {
-    printf("Failed to parse let statement.  Statement did not conform to "
-           "expectations\n");
-    exit(-1);
+ast_node_t *parse_float_literal(parser_state_t *state) {
+  token_t *token = get_token(state);
+  if (token->type == ika_float_literal) {
+    ast_node_t *node = make_node(state->allocator);
+    node->starting_token = token;
+    node->type = ast_float_literal;
+    node->literal.float_value = atof(token->value.ptr);
+    node->total_tokens = 1;
+    advance_token_pointer(state);
+    return node;
   }
-  // Insert constant identifier into symbol table
-  symtbl_insert(unit->current_scope->symbol_table,
-                stmt->let_statement.identifier->value,
-                stmt->let_statement.explicit_type == NULL
-                    ? ika_unknown
-                    : stmt->let_statement.explicit_type->type,
-                true, let_token->position.line, let_token->position.column);
+  return NULL;
 }
 
-void parse_var_stmt(compilation_unit_t *unit, stmt_t *stmt) {
-  token_t *var_token = get_token(unit);
-  // Sanity checks
-  assert(var_token != NULL);
-  assert(var_token->type == ika_keyword_var);
-
-  stmt->type = var_statement;
-  stmt->var_statement.start_token =
-      unit->current_token_idx - 1; // include the let token_t
-  stmt->var_statement.expr = new_expr(unit->allocator);
-
-  // Two possible var syntax variants
-  type_tester_ptr_t inferred[] = {&an_identifer, &an_untyped_assign};
-  type_tester_ptr_t explicitly_typed[] = {&an_identifer, &a_colon, &a_type,
-                                          &an_assign};
-  if (conform(unit, inferred, 2)) {
-    stmt->var_statement.identifier = get_token(unit);
-    stmt->var_statement.explicit_type = NULL;
-    expect_and_consume(unit, ika_untyped_assign);
-    parse_expression(unit, stmt->var_statement.expr);
-    expect_and_consume(unit, ika_semi_colon);
-  } else if (conform(unit, explicitly_typed, 4)) {
-    stmt->var_statement.identifier = get_token(unit);
-    expect_and_consume(unit, ika_colon);
-    stmt->var_statement.explicit_type = get_token(unit);
-    expect_and_consume(unit, ika_assign);
-    parse_expression(unit, stmt->var_statement.expr);
-    expect_and_consume(unit, ika_semi_colon);
-  } else {
-    printf("Failed to parse var statement.  Statement did not conform to "
-           "expectations\n");
-    exit(-1);
+ast_node_t *parse_str_literal(parser_state_t *state) {
+  token_t *token = get_token(state);
+  if (token->type == ika_str_literal) {
+    ast_node_t *node = make_node(state->allocator);
+    node->starting_token = token;
+    node->type = ast_str_literal;
+    node->literal.string_value = token->value;
+    node->total_tokens = 1;
+    advance_token_pointer(state);
+    return node;
   }
-  // Insert variable identifier into symbol table
-  symtbl_insert(unit->current_scope->symbol_table,
-                stmt->var_statement.identifier->value,
-                stmt->var_statement.explicit_type == NULL
-                    ? ika_unknown
-                    : stmt->var_statement.explicit_type->type,
-                false, var_token->position.line, var_token->position.column);
+  return NULL;
 }
 
-void parse_if_stmt(compilation_unit_t *unit, stmt_t *stmt) {
-  token_t *if_token = get_token(unit);
-  // Sanity checks
-  assert(if_token != NULL);
-  assert(if_token->type == ika_keyword_if);
-  stmt->type = if_statement;
-  stmt->if_statement.conditional = new_expr(unit->allocator);
-  stmt->if_statement.start_token =
-      unit->current_token_idx - 1; // Include the if keyword
-  expect_and_consume(unit, ika_paren_open);
-  parse_expression(unit, stmt->if_statement.conditional);
-  expect_and_consume(unit, ika_paren_close);
-  stmt->if_statement.if_scope = parse_scope(unit, cstr("if-then-scope"));
-  if (peek_current_token(unit)->type == ika_keyword_else) {
-    expect_and_consume(unit, ika_keyword_else);
-    stmt->if_statement.else_scope = parse_scope(unit, cstr("if-else-scope"));
+ast_node_t *parse_bool_literal(parser_state_t *state) {
+  token_t *token = get_token(state);
+  if (token->type == ika_bool_literal) {
+    ast_node_t *node = make_node(state->allocator);
+    node->starting_token = token;
+    node->type = ast_bool_literal;
+    node->literal.integer_value = str_eq(token->value, cstr("true"));
+    node->total_tokens = 1;
+    advance_token_pointer(state);
+    return node;
   }
-  stmt->if_statement.end_token = unit->current_token_idx;
+  return NULL;
 }
 
-void push_scope(compilation_unit_t *unit, str name) {
-  scope_t *scope = allocator_alloc_or_exit(unit->allocator, sizeof(scope_t));
-  if (unit->current_scope == NULL) {
-    // Set root scope
-    new_scope(unit->allocator, name, NULL, scope);
-  } else {
-    new_scope(unit->allocator, name, unit->current_scope, scope);
+ast_node_t *parse_symbol(parser_state_t *state) {
+  token_t *token = get_token(state);
+  if (token->type == ika_identifier) {
+    ast_node_t *node = make_node(state->allocator);
+    node->starting_token = token;
+    node->type = ast_symbol;
+    node->literal.string_value = token->value;
+    node->total_tokens = 1;
+    advance_token_pointer(state);
+    return node;
   }
-  unit->current_scope = scope;
+  return NULL;
 }
 
-void pop_scope(compilation_unit_t *unit) {
-  unit->current_scope = unit->current_scope->parent;
-}
-
-// TODO - need variable assignment expression as first class decl;
-//
-scope_t *parse_scope(compilation_unit_t *unit, str name) {
-  push_scope(unit, name);
-  scope_t *scope = unit->current_scope;
-  if (scope->parent != NULL) { // If not root scope
-    expect_and_consume(unit, ika_brace_open);
-  }
-  int total_decls = 0;
-  allocated_memory decls_mem =
-      allocator_alloc(unit->allocator, sizeof(stmt_t *) * 10);
-  if (!decls_mem.valid) {
-    log_error("Failed to allocate memory for declarations\n");
-    exit(-1);
-  }
-  scope->decls = decls_mem.ptr;
-  while (peek_current_token(unit)->type != ika_brace_close &&
-         unit->current_token_idx < unit->tokens->count) {
-    switch (peek_current_token(unit)->type) {
-    case ika_keyword_let: {
-      printf("Parsing let statement\n");
-      stmt_t *let_stmt = make_stmt(unit->allocator);
-      parse_let_stmt(unit, let_stmt);
-      scope->decls[total_decls++] = let_stmt;
-      break;
-    }
-    case ika_keyword_var: {
-      printf("Parsing var statement\n");
-      stmt_t *var_stmt = make_stmt(unit->allocator);
-      parse_var_stmt(unit, var_stmt);
-      scope->decls[total_decls++] = var_stmt;
-      break;
-    }
-    case ika_keyword_ns: {
-      if (scope->parent != NULL) {
-        printf("Namespace only allow at root level");
-        assert(false);
-      }
-      printf("Parsing namespace\n");
-      stmt_t *namespace_stmt = make_stmt(unit->allocator);
-      parse_namespace_stmt(unit, namespace_stmt);
-      printf("Set namespace name\n");
-      unit->namespace_name =
-          &namespace_stmt->namespace_statement.nameToken->value;
-      scope->decls[total_decls++] = namespace_stmt;
-      printf("Done parseing namespace\n");
-      break;
-    }
-    case ika_keyword_if: {
-      printf("Parsing if statement\n");
-      stmt_t *if_stmt = make_stmt(unit->allocator);
-      parse_if_stmt(unit, if_stmt);
-      scope->decls[total_decls++] = if_stmt;
-      break;
-    }
-    case ika_identifier: {
-      if (an_operator(peek_next_token(unit)->type)) {
-        printf("Parsing assignment statement\n");
-        stmt_t *assignment_stmt = make_stmt(unit->allocator);
-        parse_assignment_stmt(unit, assignment_stmt);
-        scope->decls[total_decls++] = assignment_stmt;
-        break;
+ast_node_t *parse_literal(parser_state_t *state) {
+  token_t *token = get_token(state);
+  switch (token->type) {
+  case ika_paren_open: {
+    uint32_t starting_pos = state->current_token;
+    advance_token_pointer(state);
+    ast_node_t *parenthasized_expr = parse_expr(state);
+    if (parenthasized_expr) {
+      token = get_token(state);
+      if (token->type == ika_paren_close) {
+        advance_token_pointer(state);
+        return parenthasized_expr;
       }
     }
-    case ika_comment: {
-      get_token(unit); // Skip the comment
-      break;
-    }
-    default: {
-      printf("Invalid root level delcaration, got token_t->type: %s\n",
-             tokenizer_get_token_type_label(peek_current_token(unit)).ptr);
-      exit(-1);
-    }
-    }
-    if (total_decls % 10 == 0) {
-      decls_mem = allocator_realloc(unit->allocator, decls_mem,
-                                    (total_decls + 10) * sizeof(stmt_t *));
-      if (!decls_mem.valid) {
-        log_error("Failed to realloc memory for declarations\n");
+    rollback_token_pointer(state, starting_pos);
+    return NULL;
+  }
+  case ika_int_literal:
+  case ika_num_literal:
+    return parse_int_literal(state);
+  case ika_float_literal:
+    return parse_float_literal(state);
+  case ika_bool_literal:
+    return parse_bool_literal(state);
+  case ika_str_literal:
+    return parse_str_literal(state);
+  case ika_identifier:
+    return parse_symbol(state);
+  default: {
+    return NULL;
+  }
+  }
+}
+
+ast_node_t *parse_inner_term(parser_state_t *state, ast_node_t *longest) {
+  if (longest) {
+    token_t *op = get_token(state);
+    if (op->type == ika_mul || op->type == ika_quo) {
+      uint32_t starting_pos = state->current_token;
+      advance_token_pointer(state);
+      ast_node_t *literal = parse_literal(state);
+      if (literal) {
+        ast_node_t *node = make_node(state->allocator);
+        node->starting_token = longest->starting_token;
+        node->type = ast_term;
+        node->expr.op = op->type;
+        node->expr.left = longest;
+        node->expr.right = literal;
+        node->total_tokens = longest->total_tokens + 1 + literal->total_tokens;
+        return node;
+      } else {
+        rollback_token_pointer(state, starting_pos);
       }
-      scope->decls = decls_mem.ptr;
+    }
+  } else {
+    ast_node_t *literal = parse_literal(state);
+    if (literal)
+      return literal;
+  }
+  return NULL;
+}
+
+ast_node_t *parse_term(parser_state_t *state) {
+  ast_node_t *longest = NULL;
+  while (true) {
+    ast_node_t *new_result = parse_inner_term(state, longest);
+    if (new_result == NULL)
+      break;
+    if (longest != NULL && new_result->total_tokens <= longest->total_tokens)
+      break;
+    longest = new_result;
+  }
+  return longest;
+}
+
+ast_node_t *parse_inner_expr(parser_state_t *state, ast_node_t *longest) {
+  if (longest) {
+    token_t *op = get_token(state);
+    if (op->type == ika_add || op->type == ika_sub || op->type == ika_eql ||
+        op->type == ika_neq) {
+      uint32_t starting_pos = state->current_token;
+      advance_token_pointer(state);
+      ast_node_t *term = parse_term(state);
+      if (term) {
+        ast_node_t *node = make_node(state->allocator);
+        node->starting_token = longest->starting_token;
+        node->type = ast_expr;
+        node->expr.op = op->type;
+        node->expr.left = longest;
+        node->expr.right = term;
+        node->total_tokens = longest->total_tokens + 1 + term->total_tokens;
+        return node;
+      } else {
+        rollback_token_pointer(state, starting_pos);
+      }
+    }
+  } else {
+    ast_node_t *term = parse_term(state);
+    if (term)
+      return term;
+  }
+  return NULL;
+}
+
+ast_node_t *parse_expr(parser_state_t *state) {
+  ast_node_t *longest = NULL;
+  while (true) {
+    ast_node_t *new_result = parse_inner_expr(state, longest);
+    if (new_result == NULL)
+      break;
+    if (longest != NULL && new_result->total_tokens <= longest->total_tokens)
+      break;
+    longest = new_result;
+  }
+  return longest;
+}
+
+e_ika_type parse_assignment_type(parser_state_t *state) {
+  uint32_t starting_pos = state->current_token;
+  if (expect_and_consume(state, ika_colon)) {
+    token_t *token = get_token(state);
+    e_ika_type type;
+    if (token->type > __ika_types_start && token->type < __ika_types_end) {
+      type = token->type;
+      advance_token_pointer(state);
+      if (expect_and_consume(state, ika_assign)) {
+        return type;
+      }
     }
   }
-  if (peek_current_token(unit)->type == ika_brace_close)
-    expect_and_consume(unit, ika_brace_close);
-  scope->total_decls = total_decls;
-
-  pop_scope(unit);
-  return scope;
+  rollback_token_pointer(state, starting_pos);
+  return ika_unknown;
 }
 
-void parser_parse(compilation_unit_t *unit) {
-  unit->scopes = parse_scope(unit, cstr("root"));
-  printf("Parsing complete\n");
-}
-
-void new_scope(allocator_t allocator, str name, scope_t *parent_scope,
-               scope_t *scope) {
-  scope->name = name;
-  scope->symbol_table = symtbl_init(allocator, scope);
-  scope->number_of_children = 0;
-  // TODO: Find a better way
-  scope->children = allocator_alloc_or_exit(allocator, sizeof(scope_t *) * 10);
-  if (parent_scope != NULL) {
-    // Add this scope as a child
-    scope->parent = parent_scope;
-    parent_scope->children[parent_scope->number_of_children++] = *scope;
+ast_node_t *parse_assignment(parser_state_t *state) {
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  bool constant = false;
+  if (token->type == ika_keyword_let) {
+    constant = true;
+    advance_token_pointer(state);
+    token = get_token(state);
   }
+  if (token->type == ika_identifier) {
+    ast_node_t *symbol = parse_symbol(state);
+    e_ika_type type = ika_unknown;
+    if (symbol) {
+      if (expect_and_consume(state, ika_untyped_assign)) {
+        type = ika_untyped_assign;
+      } else {
+        type = parse_assignment_type(state);
+      }
+      if (type != ika_unknown) {
+        ast_node_t *expr = parse_expr(state);
+        if (expr) {
+          add_to_symbol_table(state, symbol->symbol.value, type, constant,
+                              token);
+          ast_node_t *node = make_node(state->allocator);
+          node->starting_token = dynarray_get(state->tokens, starting_pos);
+          node->type = ast_assignment;
+          node->assignment.identifier = symbol;
+          node->assignment.type = type;
+          node->assignment.expr = expr;
+          node->assignment.constant = constant;
+          return node;
+        }
+      }
+    }
+  }
+  // We failed to parse an assignment rewind the parser state.
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
 }
 
-void new_compilation_unit(allocator_t allocator, char *filename, str *buffer,
-                          dynarray *tokens, compilation_unit_t *unit) {
-  allocated_memory mem = allocator_alloc(allocator, sizeof(scope_t));
-  if (!mem.valid) {
-    log_error("Failed to allocate memory, bailing..");
-    exit(-1);
+e_ika_type parse_ika_type_decl(parser_state_t *state) {
+  uint32_t starting_pos = state->current_token;
+  if (expect_and_consume(state, ika_colon)) {
+    token_t *token = get_token(state);
+    e_ika_type type;
+    if (token->type > __ika_types_start && token->type < __ika_types_end) {
+      type = token->type;
+      advance_token_pointer(state);
+      return type;
+    }
   }
-  unit->allocator = allocator;
-  unit->src_file = cstr(filename);
-  unit->buffer = buffer;
-  unit->tokens = tokens;
-  unit->current_scope = NULL;
+  rollback_token_pointer(state, starting_pos);
+  return ika_unknown;
+}
+
+// TODO: Use this in assignment and remove untyped assign.
+ast_node_t *parse_decl(parser_state_t *state) {
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  if (token->type == ika_identifier) {
+    ast_node_t *symbol = parse_symbol(state);
+    if (symbol) {
+      e_ika_type type = parse_ika_type_decl(state);
+      if (type != ika_unknown) {
+        add_to_symbol_table(state, symbol->symbol.value, type, false, token);
+        ast_node_t *node = make_node(state->allocator);
+        node->type = ast_decl;
+        node->decl.identifier = symbol;
+        node->decl.type = type;
+        return node;
+      }
+    }
+  }
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
+}
+
+// TODO: Maybe rename block to scope
+ast_node_t *parse_block(parser_state_t *state) {
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  if (token->type == ika_brace_open) {
+    // Make a new symbol table for the block/scope.  Store it in the parser
+    // state and link it to the block/scope.  The current symbol table
+    // must be restored afterwards.
+    symbol_table_t *child_symbol_table =
+        make_symbol_table(state->allocator, state->current_scope);
+    state->current_scope = child_symbol_table;
+
+    ast_node_t *node = make_node(state->allocator);
+    node->starting_token = token;
+    node->type = ast_block;
+    node->block.nodes = *dynarray_init(state->allocator, sizeof(ast_node_t));
+    node->block.symbol_table = child_symbol_table;
+    advance_token_pointer(state); // Move past opening brace
+    while (get_token(state)->type != ika_brace_close) {
+      ast_node_t *child_node = parse_node(state);
+      dynarray_append(&node->block.nodes, child_node);
+    }
+    advance_token_pointer(state); // Move past closing brace
+    // Restore the symbol table to the previous scopes table
+    state->current_scope = state->current_scope->parent;
+    return node;
+  }
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
+}
+
+ast_node_t *parse_fn(parser_state_t *state) {
+  symbol_table_t *params_symbol_table;
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  if (token->type == ika_keyword_fn) {
+    advance_token_pointer(state);
+    ast_node_t *symbol = parse_symbol(state);
+    if (symbol) {
+      dynarray *decls = dynarray_init(state->allocator, sizeof(ast_node_t));
+      dynarray *returns = dynarray_init(state->allocator, sizeof(ast_node_t));
+      if (expect_and_consume(state, ika_paren_open)) {
+        // Function parameters are in their own scope
+        //
+        // TODO: Think about unifying scope/symbol tables
+        params_symbol_table =
+            make_symbol_table(state->allocator, state->current_scope);
+        state->current_scope = params_symbol_table;
+        do {
+          ast_node_t *decl = parse_decl(state);
+          if (decl)
+            dynarray_append(decls, decl);
+        } while (expect_and_consume(state, ika_comma));
+
+        state->current_scope = state->current_scope->parent;
+      }
+      if (expect_and_consume(state, ika_paren_close)) {
+        if (expect_and_consume(state, ika_colon)) {
+          token_t *next_token = get_token(state);
+          if (next_token->type > __ika_types_start &&
+              next_token->type < __ika_types_end) {
+            dynarray_append(returns, &next_token->type);
+            advance_token_pointer(state);
+          } else if (next_token->type == ika_paren_open) {
+            advance_token_pointer(state);
+            do {
+              next_token = get_token(state);
+              if (next_token->type > __ika_types_start &&
+                  next_token->type < __ika_types_end)
+                dynarray_append(returns, &next_token->type);
+              advance_token_pointer(state);
+            } while (expect_and_consume(state, ika_comma));
+            if (!expect_and_consume(state, ika_paren_close)) {
+              token_t *err_token = get_token(state);
+              syntax_error_t err = {.column = err_token->position.column,
+                                    .line = err_token->position.line,
+                                    .pass = parsing_pass,
+                                    .message = "Missing closing parenthesis",
+                                    .hint = "Add a closing parenthesis"};
+              dynarray_append(state->errors, &err);
+              return NULL;
+            }
+          } else {
+            token_t *err_token = get_token(state);
+            syntax_error_t err = {
+                .column = err_token->position.column,
+                .line = err_token->position.line,
+                .pass = parsing_pass,
+                .message = "Missing opening parenthesis",
+                .hint =
+                    "Functions require a parenthesised parameter list even if it's empty.\n \
+              \n\n \
+              Examples:\n \
+              \tfn myfunc(): int \n\
+              \tfn myfunc(x: int): int\n\
+              \tThe return type is optional, and if omitted defaults to void\n \
+              \tfn myfunc()\n"};
+            dynarray_append(state->errors, &err);
+            return NULL;
+          }
+        }
+        ast_node_t *block = parse_block(state);
+        if (block) {
+          add_to_symbol_table(state, symbol->symbol.value, ika_keyword_fn, true,
+                              token);
+          ast_node_t *node = make_node(state->allocator);
+          node->type = ast_fn;
+          node->fn.identifier = symbol;
+          node->fn.parameters = *decls;
+          node->fn.parameters_symbol_table = params_symbol_table;
+          node->fn.block = block;
+          node->fn.return_types = *returns;
+          return node;
+        }
+      }
+    }
+  }
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
+}
+
+ast_node_t *parse_if_statement(parser_state_t *state) {
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  if (token->type == ika_keyword_if) {
+    advance_token_pointer(state);
+    ast_node_t *expr = parse_expr(state);
+    if (expr) {
+      ast_node_t *if_block = parse_block(state);
+      if (if_block) {
+        ast_node_t *node = make_node(state->allocator);
+        node->starting_token = token;
+        node->type = ast_if_statement;
+        node->if_statement.expr = expr;
+        node->if_statement.if_block = if_block;
+        token = get_token(state);
+        if (token->type == ika_keyword_else) {
+          advance_token_pointer(state);
+          ast_node_t *else_block = parse_block(state);
+          if (else_block) {
+            node->if_statement.else_block = else_block;
+          } else {
+            token_t *err_token = get_token(state);
+            syntax_error_t err = {
+                .column = err_token->position.column,
+                .line = err_token->position.line,
+                .pass = parsing_pass,
+                .message = "Missing block for else clause",
+                .hint = "Else clauses require blocks of code to be executed \
+                       if the else branch is choosen. \n\n \
+                       Example:\n\n \
+                       if (false) { x := 100} else { x:= 200 }\n"};
+            dynarray_append(state->errors, &err);
+          }
+        }
+        return node;
+      }
+    }
+  }
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
+}
+
+ast_node_t *parse_return(parser_state_t *state) {
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  if (token->type == ika_keyword_return) {
+    advance_token_pointer(state);
+    token_t *next_token = get_token(state);
+    dynarray *returns = dynarray_init(state->allocator, sizeof(ast_node_t));
+    if (next_token->type == ika_paren_open) {
+      advance_token_pointer(state);
+      do {
+        ast_node_t *expr = parse_expr(state);
+        if (expr)
+          dynarray_append(returns, expr);
+      } while (expect_and_consume(state, ika_comma));
+      if (!expect_and_consume(state, ika_paren_close)) {
+        token_t *err_token = get_token(state);
+        syntax_error_t err = {.column = err_token->position.column,
+                              .line = err_token->position.line,
+                              .pass = parsing_pass,
+                              .message = "Missing closing around return type",
+                              .hint = ""};
+        dynarray_append(state->errors, &err);
+      }
+    } else {
+      ast_node_t *expr = parse_expr(state);
+      if (expr)
+        dynarray_append(returns, expr);
+    }
+    ast_node_t *node = make_node(state->allocator);
+    node->starting_token = token;
+    node->type = ast_return;
+    node->returns.exprs = *returns;
+    return node;
+  }
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
+}
+
+ast_node_t *parse_node(parser_state_t *state) {
+  ast_node_t *node;
+  // Skip coments
+  if (is_comment(state)) {
+    advance_token_pointer(state);
+    return NULL;
+  }
+  node = parse_assignment(state);
+  if (node)
+    return node;
+  node = parse_if_statement(state);
+  if (node)
+    return node;
+  node = parse_block(state);
+  if (node)
+    return node;
+  node = parse_fn(state);
+  if (node)
+    return node;
+  node = parse_decl(state);
+  if (node)
+    return node;
+  node = parse_return(state);
+  if (node)
+    return node;
+  token_t *err_token = get_token(state);
+  syntax_error_t err = {.column = err_token->position.column,
+                        .line = err_token->position.line,
+                        .pass = parsing_pass,
+                        .message = cstr("Unexpected token"),
+                        .hint = ""};
+  dynarray_append(state->errors, &err);
+  // Skip the problematic token
+  advance_token_pointer(state);
+  return NULL;
+}
+
+ast_node_t *parser_parse(allocator_t allocator, dynarray *tokens,
+                         dynarray *errors) {
+  parser_state_t parser_state = (parser_state_t){.current_token = 0,
+                                                 .tokens = tokens,
+                                                 .allocator = allocator,
+                                                 .errors = errors};
+
+  symbol_table_t *symbol_table = make_symbol_table(allocator, NULL);
+  parser_state.current_scope = symbol_table;
+
+  ast_node_t *root = make_node(allocator);
+  root->starting_token = get_token(&parser_state);
+  root->type = ast_block;
+  root->block.symbol_table = symbol_table;
+  root->block.nodes = *dynarray_init(allocator, sizeof(ast_node_t));
+  while (parser_state.current_token < parser_state.tokens->count) {
+    ast_node_t *node = parse_node(&parser_state);
+    // Node parsing can return null in cases like comments, etc/
+    if (node)
+      dynarray_append(&root->block.nodes, node);
+  }
+  printf("Root Symbol Table:\n");
+  symbol_table_dump(symbol_table);
+
+  return root;
 }

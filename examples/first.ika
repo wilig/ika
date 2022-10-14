@@ -1,106 +1,64 @@
-// A single line comment in Ika
-ns main;
+// Simple variable declaration
+big_int : u64
 
-// import io;
+// Simple untyped assignment
+int_assignment := 10
+string_assignment := "This is a string!"
+bool_assignment := true
+float_assignment := 100.5
+returning := false
+truenough := 100
 
-let stdout := 1;
-let stderr := 2;
-let stdin  := 0;
+// Simple typed assignment
+typed_assignment : u64 = 10 * 1200
 
-let floaty := 1.21;
 
-let truthy := true;
-let falsey := false;
+// Precedence
+simple_multiplication := 10 * 5 * 3 * 8 * 2
+simple_multiplication_and_division := 10 * 5 / 8 * 27 / 2
+simple_subtraction := 10 - 5 - 3 - 2
+simple_precedence := 10 - 5 * 3 - 2
+simple_precedence_with_parens := (10 - 5) * 3 / 2 + 50 / 4
+single_expression := (100 + 100)
 
-// This should cause an duplicate identifier error
-// let stderr := "hello?";
+// Expressions with identifiers
+{
+    x:= 5
 
-let weird : u64 = 100 * 340189;
+    fourtyfive := 4 * x
+}
 
-var name := "This is a string for the name var";
-var multiplier := 100;
+// This defines an inner scope
+{
+    let my_const := 45
+    another_var : u32 = 100
+}
 
-var result := 5 * multiplier;
+// If statement single block
+if (false) {
+  let t := true
+}
 
-if(stdout == 1) {
-  result = 100;
-  // This should cause an error because it's const
-  weird -= 1000;
-  // This should cause an error because it's undefined
-  undef = 1.1;
+// If statement with else block
+if (10 + 1 == 11) {
+  let bang := 100
 } else {
-  result = 200;
+  boom := 50
+}
+
+// Simple function that returns void
+fn nothing() {
+  i_do_nothing := 1
+}
+
+// Simple function that returns an int
+fn double(x: u64): u64 {
+  return x * 2
+}
+
+fn multiply(x: u16, y: u16, z: u64): u32 {
+  return x * y
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-var name := "This is a string for the name var";
-var multiplier := 100;
-
-var result := 5 * multiplier ;
-
-Start small stupid.
-
-
-/* A main function is a good idea
- *
- * See this one here:
-*/
-fn main() void {
-   io.writeln(io.stdout, "Hello squidlets");
-   io.writeln(io.stdout, "Hello\n\t\t\"squidlets\"");
-}
-
-var empty_string := "";
-var hex_num : u64 = 0xFEEDDEAD;
-var big_decimal := 10000000;
-var float_one := 1.003;
-var float_two := 1.575E1;
-var float_three := 1575e-2;
-var float_four := -2.5e-3;
-
-/*  Multi-line comment
-fn match_fn(u64 x) void {
-   match x {
-     1 -> writeln(io.stdout, "You sent the number 1"),
-     2 -> writeln(io.stdout, "You send the number 2"),
-     any -> writeln(io.stdout, "Well it wasn't the number 1 or 2")
-   }
-}
-
-    /* Nested multiline comment on one line */
-
-fn maths() !u64 {
-   let x := 5;
-   let y := 10 * 5;
-   var v : u64 = 100 * y;
-
-   y = 1; // Should fail
-   y := 1; // Should also fail
-   v = 10; // Should reassign v
-   return v;
-}
-
-
-test "basic testing is part of the language" {
-
-}
-*/
-*/
+a_simple_assignment_at_the_end := 1000

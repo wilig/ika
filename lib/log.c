@@ -1,10 +1,11 @@
-#include "log.h"
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "allocator.h"
 #include "hashtbl.h"
-#include "stdarg.h"
-#include "stdio.h"
-#include "tokenize.h"
-#include <stdint.h>
+#include "log.h"
 
 static logger_configuration __LOGGER_CONFIG = {.valid = false};
 
