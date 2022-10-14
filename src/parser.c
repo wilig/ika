@@ -10,6 +10,8 @@
 #include "tokenize.h"
 #include "types.h"
 
+// TODO: Push scope/Pop scope ?
+//
 ast_node_t *parse_node(parser_state_t *);
 ast_node_t *parse_expr(parser_state_t *);
 
@@ -40,6 +42,21 @@ bool expect_and_consume(parser_state_t *state, e_ika_type type) {
     return true;
   }
   return false;
+}
+
+void add_to_symbol_table(parser_state_t *state, str identifier, e_ika_type type,
+                         bool constant, token_t *token) {
+  if (symbol_table_insert(state->current_scope, identifier, type, false,
+                          token->position.line,
+                          token->position.column) != SUCCESS) {
+    syntax_error_t err = {
+        .column = token->position.column,
+        .line = token->position.line,
+        .pass = parsing_pass,
+        .message = cstr("Redefinition of existing identifier"),
+        .hint = cstr("Try using a different name or removing the duplicate.")};
+    dynarray_append(state->errors, &err);
+  }
 }
 
 ast_node_t *make_node(allocator_t allocator) {
@@ -272,6 +289,8 @@ ast_node_t *parse_assignment(parser_state_t *state) {
       if (type != ika_unknown) {
         ast_node_t *expr = parse_expr(state);
         if (expr) {
+          add_to_symbol_table(state, symbol->symbol.value, type, constant,
+                              token);
           ast_node_t *node = make_node(state->allocator);
           node->starting_token = dynarray_get(state->tokens, starting_pos);
           node->type = ast_assignment;
@@ -313,6 +332,7 @@ ast_node_t *parse_decl(parser_state_t *state) {
     if (symbol) {
       e_ika_type type = parse_ika_type_decl(state);
       if (type != ika_unknown) {
+        add_to_symbol_table(state, symbol->symbol.value, type, false, token);
         ast_node_t *node = make_node(state->allocator);
         node->type = ast_decl;
         node->decl.identifier = symbol;
@@ -331,22 +351,25 @@ ast_node_t *parse_block(parser_state_t *state) {
   uint32_t starting_pos = state->current_token;
   if (token->type == ika_brace_open) {
     // Make a new symbol table for the block/scope.  Store it in the parser
-    // state and link it to the block/scope.
-    symbol_table_t *symbol_table =
+    // state and link it to the block/scope.  The current symbol table
+    // must be restored afterwards.
+    symbol_table_t *child_symbol_table =
         make_symbol_table(state->allocator, state->current_scope);
-    state->current_scope = symbol_table;
+    state->current_scope = child_symbol_table;
 
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
     node->type = ast_block;
     node->block.nodes = *dynarray_init(state->allocator, sizeof(ast_node_t));
-    node->block.symbol_table = symbol_table;
+    node->block.symbol_table = child_symbol_table;
     advance_token_pointer(state); // Move past opening brace
     while (get_token(state)->type != ika_brace_close) {
       ast_node_t *child_node = parse_node(state);
       dynarray_append(&node->block.nodes, child_node);
     }
     advance_token_pointer(state); // Move past closing brace
+    // Restore the symbol table to the previous scopes table
+    state->current_scope = state->current_scope->parent;
     return node;
   }
   rollback_token_pointer(state, starting_pos);
@@ -354,6 +377,7 @@ ast_node_t *parse_block(parser_state_t *state) {
 }
 
 ast_node_t *parse_fn(parser_state_t *state) {
+  symbol_table_t *params_symbol_table;
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
   if (token->type == ika_keyword_fn) {
@@ -363,16 +387,19 @@ ast_node_t *parse_fn(parser_state_t *state) {
       dynarray *decls = dynarray_init(state->allocator, sizeof(ast_node_t));
       dynarray *returns = dynarray_init(state->allocator, sizeof(ast_node_t));
       if (expect_and_consume(state, ika_paren_open)) {
-        // TODO: Use do {} while
-        ast_node_t *decl = parse_decl(state);
-        if (decl) {
-          dynarray_append(decls, decl);
-          while (expect_and_consume(state, ika_comma)) {
-            decl = parse_decl(state);
-            if (decl)
-              dynarray_append(decls, decl);
-          }
-        }
+        // Function parameters are in their own scope
+        //
+        // TODO: Think about unifying scope/symbol tables
+        params_symbol_table =
+            make_symbol_table(state->allocator, state->current_scope);
+        state->current_scope = params_symbol_table;
+        do {
+          ast_node_t *decl = parse_decl(state);
+          if (decl)
+            dynarray_append(decls, decl);
+        } while (expect_and_consume(state, ika_comma));
+
+        state->current_scope = state->current_scope->parent;
       }
       if (expect_and_consume(state, ika_paren_close)) {
         if (expect_and_consume(state, ika_colon)) {
@@ -421,10 +448,13 @@ ast_node_t *parse_fn(parser_state_t *state) {
         }
         ast_node_t *block = parse_block(state);
         if (block) {
+          add_to_symbol_table(state, symbol->symbol.value, ika_keyword_fn, true,
+                              token);
           ast_node_t *node = make_node(state->allocator);
           node->type = ast_fn;
           node->fn.identifier = symbol;
           node->fn.parameters = *decls;
+          node->fn.parameters_symbol_table = params_symbol_table;
           node->fn.block = block;
           node->fn.return_types = *returns;
           return node;
@@ -574,6 +604,8 @@ ast_node_t *parser_parse(allocator_t allocator, dynarray *tokens,
     if (node)
       dynarray_append(&root->block.nodes, node);
   }
+  printf("Root Symbol Table:\n");
+  symbol_table_dump(symbol_table);
 
   return root;
 }

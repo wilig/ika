@@ -7,6 +7,7 @@
 * DONE unify error storage and reporting
 * DONE fix tokenizer to check for keywords/types as part of identifier processing
 * TODO Symbol table pass
+** TODO Add a scope for function parameters
 * TODO Typing pass
 * TODO constant folding
 * TODO Add semantic analysis

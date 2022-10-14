@@ -9,6 +9,7 @@
 #include "errors.h"
 #include "parser.h"
 #include "print.h"
+#include "symbol_table.h"
 #include "tokenize.h"
 
 int64_t time_in_ms() {

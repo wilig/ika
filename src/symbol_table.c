@@ -4,6 +4,7 @@
 #include "../lib/hashtbl.h"
 #include "../lib/log.h"
 
+#include "errors.h"
 #include "symbol_table.h"
 #include "types.h"
 
@@ -56,8 +57,8 @@ symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, str key) {
   return NULL;
 }
 
-void symbol_table_insert(symbol_table_t *t, str name, e_ika_type type,
-                         bool constant, uint32_t line, uint32_t column) {
+IKA_ERROR symbol_table_insert(symbol_table_t *t, str name, e_ika_type type,
+                              bool constant, uint32_t line, uint32_t column) {
   symbol_table_entry_t *entry =
       allocator_alloc_or_exit(t->allocator, sizeof(symbol_table_entry_t));
   str *entry_name = allocator_alloc_or_exit(t->allocator, sizeof(str));
@@ -71,9 +72,10 @@ void symbol_table_insert(symbol_table_t *t, str name, e_ika_type type,
   if (!hashtbl_str_insert(
           t->table,
           (str_entry_t){.key = name, .valid = true, .value = entry})) {
-    log_error("Redefinition of {s} at line {d} column {d}", name, line, column);
-    exit(-1);
+    // The identifier is already in the symbol table.  That's an error.
+    return VARIABLE_REDEFINITION_ERROR;
   };
+  return SUCCESS;
 }
 
 void symbol_table_add_reference(symbol_table_t *t, str key, uint32_t line,
@@ -107,32 +109,28 @@ int count_digits(size_t n) {
   return count;
 }
 
-/* void symbol_table_dump(symbol_table_t *t) { */
-/*   printf("--------------------------------------------------------------------"
- */
-/*          "----------\n"); */
-/*   printf("| Name                                 | Type               | Line
- * " */
-/*          "| Column |\n"); */
-/*   printf("|--------------------------------------|--------------------|-------"
- */
-/*          "|--------|\n"); */
+void symbol_table_dump(symbol_table_t *t) {
+  printf("--------------------------------------------------------------------"
+         "----------\n");
+  printf("| Name                                 | Type               | Line "
+         "| Column |\n");
+  printf("|--------------------------------------|--------------------|-------"
+         "|--------|\n");
 
-/*   hashtbl_str_keys_t ht_keys = hashtbl_str_get_keys(t->table); */
-/*   for (int i = 0; i < ht_keys.count; i++) { */
-/*     symtbl_entry_t *entry = symtbl_lookup(t, *ht_keys.keys[i]); */
-/*     printf("| %.*s", entry->name->length, entry->name->ptr); */
-/*     symtbl_print_fill_space(37 - entry->name->length); */
-/*     str type_name = tokenizer_get_token_type_name(entry->type); */
-/*     printf("| %s", type_name.ptr); */
-/*     symtbl_print_fill_space(19 - type_name.length); */
-/*     printf("| %i", entry->line); */
-/*     symtbl_print_fill_space(6 - count_digits(entry->line)); */
-/*     printf("| %i", entry->column); */
-/*     symtbl_print_fill_space(7 - count_digits(entry->column)); */
-/*     printf("|\n"); */
-/*   } */
-/*   printf("--------------------------------------------------------------------"
- */
-/*          "----------\n\n"); */
-/* } */
+  hashtbl_str_keys_t ht_keys = hashtbl_str_get_keys(t->table);
+  for (int i = 0; i < ht_keys.count; i++) {
+    symbol_table_entry_t *entry = symbol_table_lookup(t, *ht_keys.keys[i]);
+    printf("| %.*s", entry->identifer->length, entry->identifer->ptr);
+    symbol_table_print_fill_space(37 - entry->identifer->length);
+    str type_name = cstr(ika_base_type_table[entry->type].label);
+    printf("| %s", type_name.ptr);
+    symbol_table_print_fill_space(19 - type_name.length);
+    printf("| %i", entry->line);
+    symbol_table_print_fill_space(6 - count_digits(entry->line));
+    printf("| %i", entry->column);
+    symbol_table_print_fill_space(7 - count_digits(entry->column));
+    printf("|\n");
+  }
+  printf("--------------------------------------------------------------------"
+         "----------\n\n");
+}

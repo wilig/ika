@@ -2,6 +2,7 @@
 
 #include "../lib/hashtbl.h"
 
+#include "errors.h"
 #include "types.h"
 
 /* // Forward definition see parser.h */
@@ -16,11 +17,9 @@ typedef struct {
 // about a value.  Things like:
 // - the name (possibly redundant)
 // - a possibly preliminary type
-// - potentially a memory location
 // - size in bytes for the value
 // - the alignment (it's a processor efficiency thing I think)
 // - the location in the source it's defined
-// - other locations that reference it
 typedef struct {
   bool constant;
   str *identifer;
@@ -40,8 +39,8 @@ typedef struct symbol_table_t {
 symbol_table_t *make_symbol_table(allocator_t allocator,
                                   symbol_table_t *parent);
 
-void symbol_table_insert(symbol_table_t *, str name, e_ika_type type,
-                         bool constant, uint32_t line, uint32_t column);
+IKA_ERROR symbol_table_insert(symbol_table_t *, str name, e_ika_type type,
+                              bool constant, uint32_t line, uint32_t column);
 
 symbol_table_entry_t *symbol_table_lookup(symbol_table_t *, str);
 

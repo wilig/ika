@@ -2,28 +2,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void errors_print_at_column(char c, int column) {
+void errors_print_at_column(int c, int column) {
   for (int i = 0; i <= column - 1; i++)
     printf(" ");
-  printf("%c\n", c);
+  printf("%lc\n", c);
 }
 
 void errors_print_lines(int column) {
   column -= 1;
   if (column > 0) {
-    printf("|");
+    printf("%lc", 0x250c);
   }
   while (column > 0) {
-    printf("-");
+    printf("%lc", 0x2500);
     column--;
   }
-  printf("|\n");
-  printf("|\n");
+  printf("%lc\n", 0x2518);
+  printf("%lc\n", 0x2502);
 }
 
 void errors_print_pointer(int column, int length) {
   while (length > 0) {
-    errors_print_at_column('^', column);
+    errors_print_at_column(0x25B2, column);
     length--;
   }
   errors_print_lines(column);
@@ -48,10 +48,10 @@ void errors_display_context(int line, str source) {
 void errors_display_error(syntax_error_t *err, str source) {
   errors_display_context(err->line, source);
   errors_print_pointer(err->column, 1);
-  printf("Syntax Error: %.*s on line %d\n", err->message.length,
+  printf("Syntax Error: %.*s on line %d\n\n", err->message.length,
          err->message.ptr, err->line);
   if (err->hint.length > 0) {
-    printf("%*.s\n\n", err->hint.length, err->hint.ptr);
+    printf("%.*s\n\n", err->hint.length, err->hint.ptr);
   }
 }
 

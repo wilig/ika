@@ -4,6 +4,11 @@
 #include "../lib/str.h"
 
 typedef enum {
+  SUCCESS,
+  VARIABLE_REDEFINITION_ERROR,
+} IKA_ERROR;
+
+typedef enum {
   tokenizing_pass,
   parsing_pass,
   analysis_pass,
