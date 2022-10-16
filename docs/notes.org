@@ -10,7 +10,7 @@ the hands of a master this is probably a good thing, but in the hands of
 mere humans it's probably too little direction.  It seems like there is
 an artful balance between too simple and not simple enough.
 
-Should the language be combined with an code authoring environment?
+Should the language be combined with a code authoring environment?
 
 * Copying parameters vs reference?
 **   Mutable vs. immutable parameters?

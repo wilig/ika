@@ -1,3 +1,10 @@
+#include <assert.h>
+
+#include "ast.h"
+#include "compiler.h"
+#include "symbol_table.h"
+#include "types.h"
+
 /* #include <assert.h> */
 /* #include <stdlib.h> */
 
@@ -74,39 +81,74 @@
 /*   entry->type = type; */
 /* } */
 
-/* void analyzer_resolve_types(scope_t *scope) { */
-/*   printf("Analyzing scope: %.*s with %d declarations\n", scope->name.length,
- */
-/*          scope->name.ptr, scope->total_decls); */
-/*   // TODO: Rename total_decls to decl_count */
-/*   for (int x = 0; x < scope->total_decls; x++) { */
-/*     stmt_t *stmt = scope->decls[x]; */
-/*     switch (stmt->type) { */
-/*     case let_statement: { */
-/*       let_stmt_t let = stmt->let_statement; */
-/*       e_ika_type deduced_type = */
-/*           analyzer_deduce_type(scope->symbol_table, let.expr); */
-/*       analyzer_update_type(scope->symbol_table, let.identifier->value, */
-/*                            deduced_type); */
-/*       break; */
-/*     } */
-/*     case var_statement: { */
-/*       var_stmt_t var = stmt->var_statement; */
-/*       e_ika_type deduced_type = */
-/*           analyzer_deduce_type(scope->symbol_table, var.expr); */
-/*       analyzer_update_type(scope->symbol_table, var.identifier->value, */
-/*                            deduced_type); */
-/*       break; */
-/*     } */
-/*     default: { */
-/*       printf("stmt->type = %d\n", stmt->type); */
-/*       break; */
-/*     } */
-/*     } */
-/*   } */
-/* } */
+e_ika_type determine_type_for_expression(ast_node_t *expression) {
+  switch (expression->type) {
+  case ast_int_literal:
+    return ika_int;
+  case ast_float_literal:
+    return ika_float;
+  case ast_bool_literal:
+    return ika_bool;
+  case ast_str_literal:
+    return ika_str;
+  case ast_symbol:
+    // TODO: Look this up in the symbol table
+    return ika_unknown;
+  case ast_term:
+  case ast_expr: {
+    e_ika_type ltype = determine_type_for_expression(expression->expr.left);
+    e_ika_type rtype = determine_type_for_expression(expression->expr.right);
+    if (ltype == rtype) { // Simple case
+      return ltype;
+    } else if (ltype == ika_int && rtype == ika_float ||
+               ltype == ika_float && rtype == ika_int) {
+      return ika_float;
+    } else {
+      printf("%s %s %s makes no sense, at line %d\n",
+             ika_base_type_table[ltype].txt,
+             ika_base_type_table[expression->expr.op].txt,
+             ika_base_type_table[rtype].txt, expression->line);
+      exit(-1);
+    }
+  }
+  default: {
+    assert(false);
+  }
+  }
+}
 
-/* void analyzer_analyze(compilation_unit_t *unit) { */
-/*   printf("Analyzing scopes\n"); */
-/*   // analyzer_resolve_types(&unit->scopes[0]); */
-/* } */
+void analyze_assignment(ast_node_t *node) {
+  printf("Analyzing assignment %.*s, type is ",
+         node->assignment.identifier->symbol.value.length,
+         node->assignment.identifier->symbol.value.ptr);
+  e_ika_type type = determine_type_for_expression(node->assignment.expr);
+  printf("%s\n", ika_base_type_table[type].txt);
+  if (node->assignment.type == ika_untyped_assign) {
+    node->assignment.type = type;
+  } else if (node->assignment.type != type) {
+    printf("Type mismatch!  Line: %d\n", node->line);
+    exit(-1);
+  }
+}
+
+void analyzer_resolve_types(ast_node_t *root) {
+  assert(root->type == ast_block);
+  dynarray children = root->block.nodes;
+  symbol_table_t *symbol_table = root->block.symbol_table;
+  for (int i = 0; i < children.count; i++) {
+    ast_node_t *child = dynarray_get(&children, i);
+    switch (child->type) {
+    case ast_assignment: {
+      analyze_assignment(child);
+      break;
+    }
+    default:
+      break;
+    }
+  }
+}
+
+void analyzer_analyze(compilation_unit_t *unit) {
+  printf("Analyzing types\n");
+  analyzer_resolve_types(unit->root);
+}

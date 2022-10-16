@@ -6,12 +6,15 @@
 * DONE operator precedence
 * DONE unify error storage and reporting
 * DONE fix tokenizer to check for keywords/types as part of identifier processing
-* TODO Symbol table pass
-** TODO Add a scope for function parameters
-* TODO Typing pass
-* TODO constant folding
+* DONE Symbol table pass
+** DONE Add a scope for function parameters
+* DONE Simplify types (just int, float, string, bool, rune/char)
+* TODO Better error messages!
+** Maybe add end statement token based on newline or semi colon (Useful for error messaging)
 * TODO Add semantic analysis
+** TODO Add type checking
 ** TODO prevent assignment to constants
 ** TODO prevent using undeclared identifiers
-** TODO Add type checking
+* IDEA Define my own IR, and possibly a VM for executing code at compile time
+** TODO constant folding
 * IDEA Investigate QBE or FASM for backend

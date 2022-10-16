@@ -66,7 +66,7 @@ ast_node_t *make_node(allocator_t allocator) {
 
 ast_node_t *parse_int_literal(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type == ika_int_literal || token->type == ika_num_literal) {
+  if (token->type == ika_int_literal) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
     node->type = ast_int_literal;
@@ -152,7 +152,6 @@ ast_node_t *parse_literal(parser_state_t *state) {
     return NULL;
   }
   case ika_int_literal:
-  case ika_num_literal:
     return parse_int_literal(state);
   case ika_float_literal:
     return parse_float_literal(state);
@@ -604,8 +603,6 @@ ast_node_t *parser_parse(allocator_t allocator, dynarray *tokens,
     if (node)
       dynarray_append(&root->block.nodes, node);
   }
-  printf("Root Symbol Table:\n");
-  symbol_table_dump(symbol_table);
 
   return root;
 }

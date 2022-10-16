@@ -5,6 +5,7 @@
 
 #include "../lib/log.h"
 
+#include "analyzer.h"
 #include "compiler.h"
 #include "errors.h"
 #include "parser.h"
@@ -85,10 +86,14 @@ void compile(compilation_unit_t *unit) {
   printf("Parser pass ...");
   ast_node_t *root = parser_parse(unit->allocator, tokens, errors);
   printf(" %li ms\n", time_in_ms() - start);
+  unit->root = root;
+  analyzer_analyze(unit);
 
   if (errors->count > 0) {
     errors_display_parser_errors(errors, *unit->buffer);
   } else {
     print_node_as_tree(root, 0);
+    printf("Root Symbol Table:\n");
+    symbol_table_dump(root->block.symbol_table);
   }
 }

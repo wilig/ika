@@ -128,15 +128,11 @@ bool hashtbl_str_remove(hashtbl_str_t *ht, str key) {
 }
 
 hashtbl_str_t *hashtbl_str_init(allocator_t allocator) {
-  printf("Allocating space for hashtbl_str_t\n");
   hashtbl_str_t *self =
       allocator_alloc_or_exit(allocator, sizeof(hashtbl_str_t));
-  printf("%p\n", self);
   self->allocator = allocator;
-  printf("Allocating space for hashtbl_str_t entries\n");
   self->entries = allocator_alloc_or_exit(allocator, sizeof(str_entry_t) *
                                                          DEFAULT_CAPACITY);
-  printf("self->entries points to %p\n", self->entries);
   self->entry_count = 0;
   self->valid = true;
   self->capacity = DEFAULT_CAPACITY;
