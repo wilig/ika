@@ -1,6 +1,9 @@
 #include "str.h"
+#include "allocator.h"
 #include "log.h"
-#include "stdlib.h"
+
+#include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 str cstr(const char *raw_chars) {
@@ -85,4 +88,10 @@ int str_find_idx_of_nth(uint32_t nth, str haystack, str needle) {
 
 bool str_contains(str haystack, str needle) {
   return str_find_idx_of_nth(1, haystack, needle) != -1;
+}
+
+char *str_to_cstr(allocator_t allocator, str value) {
+  char *new_str = allocator_alloc_or_exit(
+      allocator, value.length + 1); // Add room for the trailing \0
+  return strncpy(new_str, value.ptr, value.length);
 }

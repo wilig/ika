@@ -215,6 +215,9 @@ static e_ika_type lookup_ika_type_or_use_default(str value,
     if (str_eq(cstr(ika_base_type_table[i].txt), value))
       return ika_base_type_table[i].type;
   }
+  // Handle true and false reserved words  TODO: Mark them reserved somehow
+  if (str_eq(value, cstr("true")) || str_eq(value, cstr("false")))
+    return ika_bool_literal;
   return _default;
 }
 

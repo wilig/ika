@@ -28,3 +28,5 @@ bool str_matches_at_index(str, str, uint32_t);
 int str_find_idx_of_nth(uint32_t, str, str);
 
 bool str_contains(str, str);
+
+char *str_to_cstr(allocator_t, str);

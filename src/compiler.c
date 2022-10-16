@@ -87,7 +87,11 @@ void compile(compilation_unit_t *unit) {
   ast_node_t *root = parser_parse(unit->allocator, tokens, errors);
   printf(" %li ms\n", time_in_ms() - start);
   unit->root = root;
+
+  start = time_in_ms();
+  printf("Typing/analyzer pass ...");
   analyzer_analyze(unit);
+  printf(" %li ms\n", time_in_ms() - start);
 
   if (errors->count > 0) {
     errors_display_parser_errors(errors, *unit->buffer);

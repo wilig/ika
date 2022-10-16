@@ -9,6 +9,7 @@
 * DONE Symbol table pass
 ** DONE Add a scope for function parameters
 * DONE Simplify types (just int, float, string, bool, rune/char)
+* TODO Command line flags for printing out debug structures (tokens, parse tree, symbol tables, etc)
 * TODO Better error messages!
 ** Maybe add end statement token based on newline or semi colon (Useful for error messaging)
 * TODO Add semantic analysis

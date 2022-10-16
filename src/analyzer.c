@@ -91,9 +91,13 @@ e_ika_type determine_type_for_expression(ast_node_t *expression) {
     return ika_bool;
   case ast_str_literal:
     return ika_str;
-  case ast_symbol:
+  case ast_symbol: {
     // TODO: Look this up in the symbol table
+    printf(
+        "\n\nSYMBOL:\n%.*s is a symbol, and currently not working correctly.\n",
+        expression->symbol.value.length, expression->symbol.value.ptr);
     return ika_unknown;
+  }
   case ast_term:
   case ast_expr: {
     e_ika_type ltype = determine_type_for_expression(expression->expr.left);
@@ -118,11 +122,7 @@ e_ika_type determine_type_for_expression(ast_node_t *expression) {
 }
 
 void analyze_assignment(ast_node_t *node) {
-  printf("Analyzing assignment %.*s, type is ",
-         node->assignment.identifier->symbol.value.length,
-         node->assignment.identifier->symbol.value.ptr);
   e_ika_type type = determine_type_for_expression(node->assignment.expr);
-  printf("%s\n", ika_base_type_table[type].txt);
   if (node->assignment.type == ika_untyped_assign) {
     node->assignment.type = type;
   } else if (node->assignment.type != type) {
@@ -131,6 +131,16 @@ void analyze_assignment(ast_node_t *node) {
   }
 }
 
+void analyze_update_symbol_table(symbol_table_t *symbol_table, str identifer,
+                                 e_ika_type type) {
+  symbol_table_entry_t *entry = symbol_table_lookup(symbol_table, identifer);
+  if (entry) {
+    entry->type = type;
+  }
+}
+
+// TODO: Do whole tree, not just the root node
+// TODO: High/medium level IR perhaps?
 void analyzer_resolve_types(ast_node_t *root) {
   assert(root->type == ast_block);
   dynarray children = root->block.nodes;
@@ -140,6 +150,9 @@ void analyzer_resolve_types(ast_node_t *root) {
     switch (child->type) {
     case ast_assignment: {
       analyze_assignment(child);
+      analyze_update_symbol_table(symbol_table,
+                                  child->assignment.identifier->symbol.value,
+                                  child->assignment.type);
       break;
     }
     default:
@@ -149,6 +162,5 @@ void analyzer_resolve_types(ast_node_t *root) {
 }
 
 void analyzer_analyze(compilation_unit_t *unit) {
-  printf("Analyzing types\n");
   analyzer_resolve_types(unit->root);
 }

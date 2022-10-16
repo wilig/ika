@@ -70,7 +70,8 @@ ast_node_t *parse_int_literal(parser_state_t *state) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
     node->type = ast_int_literal;
-    node->literal.integer_value = atoi(token->value.ptr);
+    node->literal.integer_value =
+        atoi(str_to_cstr(state->allocator, token->value));
     node->total_tokens = 1;
     advance_token_pointer(state);
     return node;
@@ -84,7 +85,8 @@ ast_node_t *parse_float_literal(parser_state_t *state) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
     node->type = ast_float_literal;
-    node->literal.float_value = atof(token->value.ptr);
+    node->literal.float_value =
+        atof(str_to_cstr(state->allocator, token->value));
     node->total_tokens = 1;
     advance_token_pointer(state);
     return node;
