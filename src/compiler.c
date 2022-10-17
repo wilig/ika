@@ -68,11 +68,10 @@ compilation_unit_t *new_compilation_unit(allocator_t allocator,
 }
 
 void compile(compilation_unit_t *unit) {
-  dynarray *errors = dynarray_init(unit->allocator, sizeof(syntax_error_t));
-
   int64_t start = time_in_ms();
   printf("Tokenization pass ...");
-  dynarray *tokens = tokenizer_scan(unit->allocator, *unit->buffer, errors);
+  dynarray *tokens =
+      tokenizer_scan(unit->allocator, *unit->buffer, unit->errors);
   printf(" %li ms\n", time_in_ms() - start);
 
   /* Print tokens
@@ -84,7 +83,7 @@ void compile(compilation_unit_t *unit) {
 
   start = time_in_ms();
   printf("Parser pass ...");
-  ast_node_t *root = parser_parse(unit->allocator, tokens, errors);
+  ast_node_t *root = parser_parse(unit->allocator, tokens, unit->errors);
   printf(" %li ms\n", time_in_ms() - start);
   unit->root = root;
 
@@ -93,8 +92,8 @@ void compile(compilation_unit_t *unit) {
   analyzer_analyze(unit);
   printf(" %li ms\n", time_in_ms() - start);
 
-  if (errors->count > 0) {
-    errors_display_parser_errors(errors, *unit->buffer);
+  if (unit->errors->count > 0) {
+    errors_display_parser_errors(unit->errors, *unit->buffer);
   } else {
     print_node_as_tree(root, 0);
     printf("Root Symbol Table:\n");

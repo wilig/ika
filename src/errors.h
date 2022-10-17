@@ -11,7 +11,6 @@ typedef enum {
 typedef enum {
   tokenizing_pass,
   parsing_pass,
-  analysis_pass,
   typing_pass,
   ir_pass
 } compiler_pass;

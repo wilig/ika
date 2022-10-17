@@ -9,6 +9,8 @@
 * DONE Symbol table pass
 ** DONE Add a scope for function parameters
 * DONE Simplify types (just int, float, string, bool, rune/char)
+* TODO Compile cleanly with all warning flags set
+* TODO Handle simple assignment to defined var
 * TODO Command line flags for printing out debug structures (tokens, parse tree, symbol tables, etc)
 * TODO Better error messages!
 ** Maybe add end statement token based on newline or semi colon (Useful for error messaging)

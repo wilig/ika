@@ -25,11 +25,13 @@ simple_subtraction := 10 - 5 - 3 - 2
 simple_precedence := 10 - 5 * 3 - 2
 simple_precedence_with_parens := (10 - 5) * 3 / 2 + 50 / 4
 single_expression := (100 + 100)
+var_expression := (100 + int_assignment)
+
+// Invalid type conversion
+// invalid_example := 5 / "the"
 
 // Type conversion
 type_conversion_int_to_float := (10 - 5) * 3 / 2 + 50 / 4.0
-
-// x = 5
 
 // Expressions with identifiers
 {

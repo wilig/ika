@@ -69,6 +69,8 @@ ast_node_t *parse_int_literal(parser_state_t *state) {
   if (token->type == ika_int_literal) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
+    node->line = token->position.line;
+    node->column = token->position.column;
     node->type = ast_int_literal;
     node->literal.integer_value =
         atoi(str_to_cstr(state->allocator, token->value));
@@ -84,6 +86,8 @@ ast_node_t *parse_float_literal(parser_state_t *state) {
   if (token->type == ika_float_literal) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
+    node->line = token->position.line;
+    node->column = token->position.column;
     node->type = ast_float_literal;
     node->literal.float_value =
         atof(str_to_cstr(state->allocator, token->value));
@@ -99,6 +103,8 @@ ast_node_t *parse_str_literal(parser_state_t *state) {
   if (token->type == ika_str_literal) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
+    node->line = token->position.line;
+    node->column = token->position.column;
     node->type = ast_str_literal;
     node->literal.string_value = token->value;
     node->total_tokens = 1;
@@ -113,6 +119,8 @@ ast_node_t *parse_bool_literal(parser_state_t *state) {
   if (token->type == ika_bool_literal) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
+    node->line = token->position.line;
+    node->column = token->position.column;
     node->type = ast_bool_literal;
     node->literal.integer_value = str_eq(token->value, cstr("true"));
     node->total_tokens = 1;
@@ -127,6 +135,8 @@ ast_node_t *parse_symbol(parser_state_t *state) {
   if (token->type == ika_identifier) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
+    node->line = token->position.line;
+    node->column = token->position.column;
     node->type = ast_symbol;
     node->literal.string_value = token->value;
     node->total_tokens = 1;
@@ -179,6 +189,8 @@ ast_node_t *parse_inner_term(parser_state_t *state, ast_node_t *longest) {
       if (literal) {
         ast_node_t *node = make_node(state->allocator);
         node->starting_token = longest->starting_token;
+        node->line = longest->starting_token->position.line;
+        node->column = longest->starting_token->position.column;
         node->type = ast_term;
         node->expr.op = op->type;
         node->expr.left = longest;
@@ -221,6 +233,8 @@ ast_node_t *parse_inner_expr(parser_state_t *state, ast_node_t *longest) {
       if (term) {
         ast_node_t *node = make_node(state->allocator);
         node->starting_token = longest->starting_token;
+        node->line = longest->starting_token->position.line;
+        node->column = longest->starting_token->position.column;
         node->type = ast_expr;
         node->expr.op = op->type;
         node->expr.left = longest;
@@ -294,6 +308,8 @@ ast_node_t *parse_assignment(parser_state_t *state) {
                               token);
           ast_node_t *node = make_node(state->allocator);
           node->starting_token = dynarray_get(state->tokens, starting_pos);
+          node->line = node->starting_token->position.line;
+          node->column = node->starting_token->position.column;
           node->type = ast_assignment;
           node->assignment.identifier = symbol;
           node->assignment.type = type;
@@ -336,6 +352,9 @@ ast_node_t *parse_decl(parser_state_t *state) {
         add_to_symbol_table(state, symbol->symbol.value, type, false, token);
         ast_node_t *node = make_node(state->allocator);
         node->type = ast_decl;
+        node->starting_token = token;
+        node->line = token->position.line;
+        node->column = token->position.line;
         node->decl.identifier = symbol;
         node->decl.type = type;
         return node;
@@ -361,6 +380,8 @@ ast_node_t *parse_block(parser_state_t *state) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
     node->type = ast_block;
+    node->line = token->position.line;
+    node->column = token->position.line;
     node->block.nodes = *dynarray_init(state->allocator, sizeof(ast_node_t));
     node->block.symbol_table = child_symbol_table;
     advance_token_pointer(state); // Move past opening brace
@@ -452,6 +473,9 @@ ast_node_t *parse_fn(parser_state_t *state) {
           add_to_symbol_table(state, symbol->symbol.value, ika_keyword_fn, true,
                               token);
           ast_node_t *node = make_node(state->allocator);
+          node->starting_token = token;
+          node->line = token->position.line;
+          node->column = token->position.line;
           node->type = ast_fn;
           node->fn.identifier = symbol;
           node->fn.parameters = *decls;
@@ -478,6 +502,8 @@ ast_node_t *parse_if_statement(parser_state_t *state) {
       if (if_block) {
         ast_node_t *node = make_node(state->allocator);
         node->starting_token = token;
+        node->line = token->position.line;
+        node->column = token->position.line;
         node->type = ast_if_statement;
         node->if_statement.expr = expr;
         node->if_statement.if_block = if_block;
@@ -539,6 +565,8 @@ ast_node_t *parse_return(parser_state_t *state) {
     }
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
+    node->line = token->position.line;
+    node->column = token->position.line;
     node->type = ast_return;
     node->returns.exprs = *returns;
     return node;
@@ -596,6 +624,8 @@ ast_node_t *parser_parse(allocator_t allocator, dynarray *tokens,
 
   ast_node_t *root = make_node(allocator);
   root->starting_token = get_token(&parser_state);
+  root->line = root->starting_token->position.line;
+  root->column = root->starting_token->position.line;
   root->type = ast_block;
   root->block.symbol_table = symbol_table;
   root->block.nodes = *dynarray_init(allocator, sizeof(ast_node_t));

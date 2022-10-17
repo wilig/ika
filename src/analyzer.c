@@ -1,87 +1,14 @@
 #include <assert.h>
 
+#include "analyzer.h"
 #include "ast.h"
 #include "compiler.h"
+#include "errors.h"
 #include "symbol_table.h"
 #include "types.h"
 
-/* #include <assert.h> */
-/* #include <stdlib.h> */
-
-/* #include "../lib/str.h" */
-
-/* #include "analyzer.h" */
-/* #include "parser.h" */
-/* #include "symtbl.h" */
-/* #include "tokenize.h" */
-/* #include "types.h" */
-
-/* bool starts_with_digit(str value) { */
-/*   return value.ptr[0] >= '0' && value.ptr[0] <= 9; */
-/* } */
-
-/* e_ika_type specialize_num_literal(str value) { */
-/*   if (str_contains(value, cstr("."))) { */
-/*     return ika_float_literal; */
-/*   } else { */
-/*     return ika_int_literal; */
-/*   } */
-/* } */
-
-/* e_ika_type analyzer_type_a_binary_expr(symtbl_t *t, expr_t *expr); */
-
-/* e_ika_type analyzer_deduce_type(symtbl_t *t, expr_t *expr) { */
-/*   switch (expr->type) { */
-/*   case literal_value: { */
-/*     literal_value_t lit = expr->literal; */
-/*     if (lit.type == ika_num_literal) { */
-/*       printf("trying to specialize a num literal\n"); */
-/*       return specialize_num_literal(lit.value->value); */
-/*     } else { */
-/*       printf("couldn't do anything with %s\n", */
-/*              tokenizer_get_token_type_name(lit.type).ptr); */
-/*       return lit.type; */
-/*     } */
-/*     break; */
-/*   } */
-/*   case identifier: { */
-/*     str ident = expr->identifier.value->value; */
-/*     symtbl_entry_t *entry = symtbl_lookup(t, ident); */
-/*     if (entry) { */
-/*       return entry->type; */
-/*     } else { */
-/*       return ika_unknown; */
-/*     } */
-/*     break; */
-/*   } */
-/*   case binary_expr: { */
-/*     return analyzer_type_a_binary_expr(t, expr); */
-/*     break; */
-/*   } */
-/*   } */
-/* } */
-
-/* e_ika_type analyzer_type_a_binary_expr(symtbl_t *t, expr_t *expr) { */
-/*   assert(expr->type == binary_expr); */
-/*   binary_expr_t binary_expr = expr->binary; */
-/*   e_ika_type left_type = analyzer_deduce_type(t, binary_expr.left); */
-/*   e_ika_type right_type = analyzer_deduce_type(t, binary_expr.right); */
-/*   if (left_type == right_type) { */
-/*     return left_type; */
-/*   } else { */
-/*     printf("Type mismatch left side is %s type, right side is %s type.\n", */
-/*            tokenizer_get_token_type_name(left_type).ptr, */
-/*            tokenizer_get_token_type_name(right_type).ptr); */
-/*     exit(-1); */
-/*   } */
-/* } */
-
-/* void analyzer_update_type(symtbl_t *t, str ident, e_ika_type type) { */
-/*   symtbl_entry_t *entry = symtbl_lookup(t, ident); */
-/*   entry->type = type; */
-/* } */
-
-e_ika_type determine_type_for_expression(ast_node_t *expression) {
+e_ika_type determine_type_for_expression(analyzer_context_t ctx,
+                                         ast_node_t *expression) {
   switch (expression->type) {
   case ast_int_literal:
     return ika_int;
@@ -92,27 +19,45 @@ e_ika_type determine_type_for_expression(ast_node_t *expression) {
   case ast_str_literal:
     return ika_str;
   case ast_symbol: {
-    // TODO: Look this up in the symbol table
-    printf(
-        "\n\nSYMBOL:\n%.*s is a symbol, and currently not working correctly.\n",
-        expression->symbol.value.length, expression->symbol.value.ptr);
+    symbol_table_entry_t *entry =
+        symbol_table_lookup(ctx.symbol_table, expression->symbol.value);
+    if (entry) {
+      return entry->type;
+    } else {
+      // TODO: Possibly use levenstein distance to find likely typos
+      printf("failed to lookup symbol, anding error to error list\n");
+      syntax_error_t err = {.column = expression->column,
+                            .line = expression->line,
+                            .pass = typing_pass,
+                            .message = cstr("Undefined identifier")};
+      dynarray_append(ctx.errors, &err);
+    }
     return ika_unknown;
   }
   case ast_term:
   case ast_expr: {
-    e_ika_type ltype = determine_type_for_expression(expression->expr.left);
-    e_ika_type rtype = determine_type_for_expression(expression->expr.right);
+    e_ika_type ltype =
+        determine_type_for_expression(ctx, expression->expr.left);
+    e_ika_type rtype =
+        determine_type_for_expression(ctx, expression->expr.right);
     if (ltype == rtype) { // Simple case
       return ltype;
     } else if (ltype == ika_int && rtype == ika_float ||
                ltype == ika_float && rtype == ika_int) {
       return ika_float;
+    } else if (ltype == ika_unknown || rtype == ika_unknown) {
+      // Punt till later, as it's most likely an error earlier in the analysis
+      return ika_unknown;
     } else {
-      printf("%s %s %s makes no sense, at line %d\n",
-             ika_base_type_table[ltype].txt,
-             ika_base_type_table[expression->expr.op].txt,
-             ika_base_type_table[rtype].txt, expression->line);
-      exit(-1);
+      // TODO: Need a way to do string interpolation on these messages
+      syntax_error_t err = {.column = expression->column,
+                            .line = expression->line,
+                            .pass = typing_pass,
+                            .message = cstr("Unsupported operation"),
+                            .hint = cstr("The operation not support for given "
+                                         "types (#needs interpolation)")};
+      dynarray_append(ctx.errors, &err);
+      return ika_unknown;
     }
   }
   default: {
@@ -121,13 +66,18 @@ e_ika_type determine_type_for_expression(ast_node_t *expression) {
   }
 }
 
-void analyze_assignment(ast_node_t *node) {
-  e_ika_type type = determine_type_for_expression(node->assignment.expr);
+void analyze_assignment(analyzer_context_t ctx, ast_node_t *node) {
+  e_ika_type type = determine_type_for_expression(ctx, node->assignment.expr);
   if (node->assignment.type == ika_untyped_assign) {
     node->assignment.type = type;
   } else if (node->assignment.type != type) {
-    printf("Type mismatch!  Line: %d\n", node->line);
-    exit(-1);
+    syntax_error_t err = {
+        .column = node->column,
+        .line = node->line,
+        .pass = typing_pass,
+        .message = cstr("Type mismatch"),
+        .hint = cstr("The types don't match (#needs interpolation)")};
+    dynarray_append(ctx.errors, &err);
   }
 }
 
@@ -139,22 +89,30 @@ void analyze_update_symbol_table(symbol_table_t *symbol_table, str identifer,
   }
 }
 
-// TODO: Do whole tree, not just the root node
+// DONE: Do whole tree, not just the root node
+// DONE: Error handling!
+// DONE: Symbol lookup
+// TODO: Function analysis
+// TODO: If statement analysis
 // TODO: High/medium level IR perhaps?
-void analyzer_resolve_types(ast_node_t *root) {
+void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
   assert(root->type == ast_block);
   dynarray children = root->block.nodes;
-  symbol_table_t *symbol_table = root->block.symbol_table;
   for (int i = 0; i < children.count; i++) {
     ast_node_t *child = dynarray_get(&children, i);
     switch (child->type) {
-    case ast_assignment: {
-      analyze_assignment(child);
-      analyze_update_symbol_table(symbol_table,
+    case ast_assignment:
+      analyze_assignment(ctx, child);
+      analyze_update_symbol_table(ctx.symbol_table,
                                   child->assignment.identifier->symbol.value,
                                   child->assignment.type);
       break;
-    }
+
+    case ast_block:
+      ctx.symbol_table = child->block.symbol_table;
+      analyzer_resolve_types(ctx, child);
+      break;
+
     default:
       break;
     }
@@ -162,5 +120,11 @@ void analyzer_resolve_types(ast_node_t *root) {
 }
 
 void analyzer_analyze(compilation_unit_t *unit) {
-  analyzer_resolve_types(unit->root);
+  // Assumes the root node is a block
+  assert(unit->root->type == ast_block);
+  analyzer_context_t ctx = {.errors = unit->errors,
+                            .symbol_table = unit->root->block.symbol_table};
+
+  analyzer_resolve_types(ctx, unit->root);
+  printf("Errors count is %li\n", ctx.errors->count);
 }
