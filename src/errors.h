@@ -17,8 +17,8 @@ typedef enum {
 
 typedef struct {
   compiler_pass pass;
-  int line;
-  int column;
+  uint32_t line;
+  uint32_t column;
   str message;
   str hint;
 } syntax_error_t;

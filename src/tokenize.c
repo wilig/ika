@@ -111,9 +111,9 @@ static token_t tokenize_string(tokenizer_input_stream *s) {
       syntax_error_t err = {.line = pos.line,
                             .column = pos.column,
                             .pass = tokenizing_pass,
-                            .message = "Invalid string escape sequence.",
-                            .hint = "Valid sequences are \\\\ \\n \\t "
-                                    "\\\"."};
+                            .message = cstr("Invalid string escape sequence."),
+                            .hint = cstr("Valid sequences are \\\\ \\n \\t "
+                                         "\\\".")};
       dynarray_append(s->errors, &err);
     } else {
       escaped = (!escaped && current_char(s) == '\\');
@@ -126,10 +126,10 @@ static token_t tokenize_string(tokenizer_input_stream *s) {
         .line = pos.line,
         .column = pos.column,
         .pass = tokenizing_pass,
-        .message = "Reached the end of the file before finding a string "
-                   "termination character.",
-        .hint =
-            "String should be terminated with a \" at the end of the string"};
+        .message = cstr("Reached the end of the file before finding a string "
+                        "termination character."),
+        .hint = cstr(
+            "String should be terminated with a \" at the end of the string")};
     dynarray_append(s->errors, &err);
   }
   return (token_t){
@@ -166,10 +166,10 @@ static token_t tokenize_comment(tokenizer_input_stream *s) {
         .line = pos.line,
         .column = pos.column,
         .pass = tokenizing_pass,
-        .message =
-            "Reached the end of the file before reaching the end of a comment.",
-        .hint =
-            "Multi-line comments should be terminated with a */ at the end."};
+        .message = cstr("Reached the end of the file before reaching the end "
+                        "of a comment."),
+        .hint = cstr(
+            "Multi-line comments should be terminated with a */ at the end.")};
     dynarray_append(s->errors, &err);
   }
   if (multiline) {
@@ -289,7 +289,7 @@ str tokenizer_get_token_type_label(token_t *t) {
       sizeof(ika_base_type_table) / sizeof(*ika_base_type_table);
   for (int i = 0; i < total_types; i++) {
     if (ika_base_type_table[i].type == t->type) {
-      return cstr((char *)ika_base_type_table[i].label);
+      return cstr((const char *)ika_base_type_table[i].label);
     }
   }
   return cstr("unknown");
@@ -299,7 +299,7 @@ str tokenizer_get_token_type_name(e_ika_type type) {
   int i = 0;
   while (ika_base_type_table[i].type != ika_eof) {
     if (ika_base_type_table[i].type == type) {
-      return cstr((char *)ika_base_type_table[i].label);
+      return cstr((const char *)ika_base_type_table[i].label);
     }
     i++;
   }

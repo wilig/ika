@@ -1,0 +1,12 @@
+
+
+fn mult(x: int, y: int): int {
+   return x * y
+}
+
+i := 10
+
+
+j := 10
+
+mult(3, 4)

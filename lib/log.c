@@ -9,9 +9,11 @@
 
 static logger_configuration __LOGGER_CONFIG = {.valid = false};
 
-hashtbl_str_t *get_type_lookup_table() { return __LOGGER_CONFIG.handlers; }
+static hashtbl_str_t *get_type_lookup_table() {
+  return __LOGGER_CONFIG.handlers;
+}
 
-void output_str_impl(FILE *stream, str s) {
+static void output_str_impl(FILE *stream, str s) {
   if (stream != NULL) {
     for (uint32_t i = 0; i < s.length; i++) {
       fputc(s.ptr[i], stream);
@@ -19,33 +21,35 @@ void output_str_impl(FILE *stream, str s) {
   }
 }
 
-void output_char_impl(FILE *stream, char *s) {
+static void output_char_impl(FILE *stream, char *s) {
   output_str_impl(stream, cstr(s));
 }
 
-void handle_unsigned_integer(FILE *stream, uint64_t i) {
+static void handle_unsigned_integer(FILE *stream, uint64_t i) {
   // TODO:  Implement output free of printf
   fprintf(stream, "%li", i);
 }
 
-void _log_print_interpolated_str(FILE *stream, char *fmt, va_list args) {
+static void log_print_interpolated_str(FILE *stream, char *fmt, va_list args) {
   str format = cstr(fmt);
   if (str_contains(format, cstr("{"))) {
-    uint32_t output_head = 0, end_brace = 0, count = 1;
-    uint32_t start_brace = str_find_idx_of_nth(count, format, cstr("{"));
+    uint32_t count = 1;
+    int output_head = 0, end_brace = 0;
+    int start_brace = str_find_idx_of_nth(count, format, cstr("{"));
     while (start_brace != -1) {
       end_brace = str_find_idx_of_nth(count, format, cstr("}"));
       if (start_brace > 0 && end_brace != -1) {
-        output(stream, cstr_from_char_with_length(&format.ptr[output_head],
-                                                  start_brace - output_head));
+        output(stream, cstr_from_char_with_length(
+                           &format.ptr[output_head],
+                           (uint32_t)(start_brace - output_head)));
       } else if (end_brace == -1) {
         // No closing brace so just dump the output
         output(stream, format);
         return;
       }
       output_head = end_brace + 1;
-      str type_t =
-          str_substr(format, start_brace + 1, (end_brace - start_brace) - 1);
+      str type_t = str_substr(format, (uint32_t)start_brace + 1,
+                              (uint32_t)(end_brace - start_brace) - 1);
       if (str_eq(type_t, cstr("s"))) {
         output(stream, va_arg(args, str));
       } else if (str_eq(type_t, cstr("c*"))) {
@@ -70,15 +74,16 @@ void _log_print_interpolated_str(FILE *stream, char *fmt, va_list args) {
       // Next spot for interpolation
       start_brace = str_find_idx_of_nth(++count, format, cstr("{"));
     }
-    if (output_head < format.length)
-      output(stream, cstr_from_char_with_length(&format.ptr[output_head],
-                                                format.length - output_head));
+    if (output_head < (int)format.length)
+      output(stream,
+             cstr_from_char_with_length(&format.ptr[output_head],
+                                        format.length - (uint32_t)output_head));
   } else {
     output(stream, format);
   }
 }
 
-log_level log_get_level() {
+static log_level log_get_level() {
   if (__LOGGER_CONFIG.valid == false) {
     return 0xffffffff;
   } else {
@@ -86,7 +91,7 @@ log_level log_get_level() {
   }
 }
 
-void log_set_color(FILE *stream, log_level level) {
+static void log_set_color(FILE *stream, log_level level) {
   if (stream == stdout) {
     switch (level) {
     case debug_log_level:
@@ -107,21 +112,21 @@ void log_set_color(FILE *stream, log_level level) {
   }
 }
 
-void log_reset_color(FILE *stream) {
+static void log_reset_color(FILE *stream) {
   if (stream == stdout) {
     output_str_impl(stream, ANSI_ESCAPE_DEFAULT);
   }
 }
 
-void print(char *fmt, ...) {
+static void print(char *fmt, ...) {
   va_list arg_pointer;
   va_start(arg_pointer, fmt);
-  _log_print_interpolated_str(stdout, fmt, arg_pointer);
+  log_print_interpolated_str(stdout, fmt, arg_pointer);
   va_end(arg_pointer);
 }
 
-void log_do_log_entry(logger_configuration logger, log_level level, char *fmt,
-                      va_list args) {
+static void log_do_log_entry(logger_configuration logger, log_level level,
+                             char *fmt, va_list args) {
   log_set_color(logger.file_handle, level);
   switch (level) {
   case debug_log_level:
@@ -141,7 +146,7 @@ void log_do_log_entry(logger_configuration logger, log_level level, char *fmt,
     break;
   }
   log_reset_color(logger.file_handle);
-  _log_print_interpolated_str(logger.file_handle, fmt, args);
+  log_print_interpolated_str(logger.file_handle, fmt, args);
 }
 
 void log_debug(char *format, ...) {
@@ -200,7 +205,7 @@ void log_deinit() {
 }
 
 void log_register_type(str key, void func(FILE *, void *)) {
-  log_info("registering a logging type for '{s}'\n", key);
+  log_info("registering a logging type for '{s}'\n", &key);
   str_entry_t i =
       (str_entry_t){.key = key, .value = (void *)func, .valid = true};
   hashtbl_str_t *table = get_type_lookup_table();

@@ -31,7 +31,9 @@ void log_error(char *, ...);
 void log_fatal(char *, ...);
 
 void log_init(allocator_t, logger_configuration);
-void log_deinit();
+
+void log_deinit(void);
+
 void log_register_type(str, void func(FILE *, void *));
 
 #define output(fh, value)                                                      \

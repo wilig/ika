@@ -126,8 +126,25 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
       ast_node_t *child = (ast_node_t *)dynarray_get(&node->block.nodes, i);
       print_node_as_tree(child, indent_level + 1);
     }
+    if (node->block.return_statement) {
+      print_node_as_tree(node->block.return_statement, indent_level + 1);
+    }
     print_indent(indent_level);
     printf("%lc%lc%lc", 0x250c, 0x2500, 0x2518);
+    printf("\n");
+    break;
+  }
+  case ast_fn_call: {
+    print_indent(indent_level);
+    printf("%lc ", 0x251c);
+    ast_node_t *identifier = node->fn_call.identifer;
+    printf("call fn '%.*s' ", identifier->symbol.value.length,
+           identifier->symbol.value.ptr);
+    if (node->fn_call.exprs.count == 0) {
+      printf("passing no parameters");
+    } else {
+      printf("passing (%li) parameters", node->fn_call.exprs.count);
+    }
     printf("\n");
     break;
   }

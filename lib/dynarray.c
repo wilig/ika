@@ -57,7 +57,7 @@ void dynarray_append(dynarray *array, void *element) {
 
 // Returns a pointer to the element in the array.  You must cast the pointer
 // to the appropriate type.
-void *dynarray_get(dynarray *array, int slot) {
+void *dynarray_get(dynarray *array, uint64_t slot) {
   if (slot < array->capacity) {
     return (void *)(array->storage + (array->element_size * slot));
   }
@@ -66,7 +66,7 @@ void *dynarray_get(dynarray *array, int slot) {
 
 // Copies the element parameter and overwrites the element in the
 // specified position.
-void dynarray_put(dynarray *array, int slot, void *element) {
+void dynarray_put(dynarray *array, uint64_t slot, void *element) {
   if (slot < array->capacity) {
     memcpy(array->storage + (array->element_size * slot), element,
            array->element_size);

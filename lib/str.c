@@ -7,17 +7,17 @@
 #include <string.h>
 
 str cstr(const char *raw_chars) {
-  int length = 0;
+  uint32_t length = 0;
   while (raw_chars[length] != '\0')
     length++;
   return (str){.ptr = raw_chars, .length = length};
 }
 
-str cstr_from_char_with_length(const char *raw_chars, int length) {
-  return (str){.ptr = raw_chars, .length = length};
+str cstr_from_char_with_length(const char *raw_chars, uint32_t length) {
+  return (str){.ptr = raw_chars, .length = (uint32_t)length};
 }
 
-int str_len(str s) { return s.length; }
+uint32_t str_len(str s) { return s.length; }
 
 bool str_eq(str s1, str s2) {
   if (s1.length != s2.length)
@@ -76,7 +76,7 @@ int str_find_idx_of_nth(uint32_t nth, str haystack, str needle) {
     if (haystack.ptr[i] == needle.ptr[0]) {
       if (str_eq(str_substr(haystack, i, needle.length), needle)) {
         if (match == nth - 1) {
-          return i;
+          return (int)i;
         } else {
           match++;
         }

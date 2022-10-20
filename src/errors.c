@@ -48,6 +48,7 @@ void errors_display_context(int line, str source) {
 void errors_display_error(syntax_error_t *err, str source) {
   errors_display_context(err->line, source);
   errors_print_pointer(err->column, 1);
+  printf("Stage: %d\n", err->pass);
   printf("Syntax Error: %.*s on line %d\n\n", err->message.length,
          err->message.ptr, err->line);
   if (err->hint.length > 0) {

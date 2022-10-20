@@ -9,15 +9,17 @@
 * DONE Symbol table pass
 ** DONE Add a scope for function parameters
 * DONE Simplify types (just int, float, string, bool, rune/char)
-* TODO Compile cleanly with all warning flags set
-* TODO Handle simple assignment to defined var
+* HOLD Compile cleanly with all warning flags set
+* DONE Handle simple assignment to defined var
+* TODO Handle calling a function
+* TODO Rip out str and convert back to char *
 * TODO Command line flags for printing out debug structures (tokens, parse tree, symbol tables, etc)
 * TODO Better error messages!
 ** Maybe add end statement token based on newline or semi colon (Useful for error messaging)
 * TODO Add semantic analysis
 ** TODO Add type checking
 ** TODO prevent assignment to constants
-** TODO prevent using undeclared identifiers
+** DONE prevent using undeclared identifiers
 * IDEA Define my own IR, and possibly a VM for executing code at compile time
 ** TODO constant folding
 * IDEA Investigate QBE or FASM for backend

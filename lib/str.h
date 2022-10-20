@@ -9,9 +9,9 @@ typedef struct str {
 
 str cstr(const char *);
 
-str cstr_from_char_with_length(const char *, int);
+str cstr_from_char_with_length(const char *, uint32_t);
 
-int str_len(str);
+uint32_t str_len(str);
 
 bool str_eq(str, str);
 

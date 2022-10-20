@@ -74,12 +74,11 @@ void compile(compilation_unit_t *unit) {
       tokenizer_scan(unit->allocator, *unit->buffer, unit->errors);
   printf(" %li ms\n", time_in_ms() - start);
 
-  /* Print tokens
+  /* Print tokens */
   for (int i = 0; i < tokens->count; i++) {
     tokenizer_print_token(stdout, dynarray_get(tokens, i));
     printf("\n");
   }
-  */
 
   start = time_in_ms();
   printf("Parser pass ...");

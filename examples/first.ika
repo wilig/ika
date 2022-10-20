@@ -28,7 +28,8 @@ single_expression := (100 + 100)
 var_expression := (100 + int_assignment)
 
 // Invalid type conversion
-// invalid_example := 5 / "the"
+//invalid_example := 5 / "the"
+//invalid_example_2 : int = "the"
 
 // Type conversion
 type_conversion_int_to_float := (10 - 5) * 3 / 2 + 50 / 4.0
@@ -69,8 +70,17 @@ fn double(x: int): int {
 }
 
 fn multiply(x: int, y: int, z: int): int {
-  return x * y
+  return x * y * z
 }
 
+fn i_should_return(x: int, y: int, z: int): int {
+  return x * y * z
+}
 
+//doubled_int := double(10)
 a_simple_assignment_at_the_end := 1000
+
+// Alternate syntax for functions...
+//double := (x int, y int) int {
+//  return x * y
+//}
