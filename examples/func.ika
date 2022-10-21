@@ -4,9 +4,6 @@ fn mult(x: int, y: int): int {
    return x * y
 }
 
-i := 10
+mult(10, 100)
 
-
-j := 10
-
-mult(3, 4)
+i := 10 * mult(5, 6)

@@ -47,11 +47,10 @@ static bool expect_and_consume(parser_state_t *state, e_ika_type type) {
 }
 
 static void add_to_symbol_table(parser_state_t *state, str identifier,
-                                e_ika_type type, bool constant,
-                                token_t *token) {
-  if (symbol_table_insert(state->current_scope, identifier, type, false,
-                          token->position.line,
-                          token->position.column) != SUCCESS) {
+                                e_ika_type type, bool constant, token_t *token,
+                                ast_node_t *node) {
+  if (symbol_table_insert(state->current_scope, identifier, type, constant,
+                          node, token->position.line) != SUCCESS) {
     syntax_error_t err = {
         .column = token->position.column,
         .line = token->position.line,
@@ -203,8 +202,14 @@ static ast_node_t *parse_literal(parser_state_t *state) {
     return parse_bool_literal(state);
   case ika_str_literal:
     return parse_str_literal(state);
-  case ika_identifier:
-    return parse_symbol(state);
+  case ika_identifier: {
+    // Could be a function call or an identifier
+    ast_node_t *fn_call_node = parse_fn_call(state);
+    if (fn_call_node)
+      return fn_call_node;
+    else
+      return parse_symbol(state);
+  }
   default: {
     return NULL;
   }
@@ -366,7 +371,7 @@ static ast_node_t *parse_assignment(parser_state_t *state) {
         if (expr) {
           if (is_definition)
             add_to_symbol_table(state, symbol->symbol.value, type, constant,
-                                token);
+                                token, 0);
           ast_node_t *node = make_node(state->allocator);
           node->starting_token = dynarray_get(state->tokens, starting_pos);
           node->line = node->starting_token->position.line;
@@ -410,7 +415,7 @@ static ast_node_t *parse_decl(parser_state_t *state) {
     if (symbol) {
       e_ika_type type = parse_ika_type_decl(state);
       if (type != ika_unknown) {
-        add_to_symbol_table(state, symbol->symbol.value, type, false, token);
+        add_to_symbol_table(state, symbol->symbol.value, type, false, token, 0);
         ast_node_t *node = make_node(state->allocator);
         node->type = ast_decl;
         node->starting_token = token;
@@ -448,7 +453,7 @@ static ast_node_t *parse_block(parser_state_t *state) {
     advance_token_pointer(state); // Move past opening brace
     while (get_token(state)->type != ika_brace_close) {
       ast_node_t *child_node = parse_node(state);
-      if (child_node->type == ast_return && !node->block.return_statement) {
+      if (child_node->type == ast_return) {
         node->block.return_statement = child_node;
       } else if (!node->block.return_statement) {
         dynarray_append(&node->block.nodes, child_node);
@@ -481,7 +486,7 @@ static ast_node_t *parse_fn(parser_state_t *state) {
     ast_node_t *symbol = parse_symbol(state);
     if (symbol) {
       dynarray *decls = dynarray_init(state->allocator, sizeof(ast_node_t));
-      dynarray *returns = dynarray_init(state->allocator, sizeof(ast_node_t));
+      e_ika_type return_type = ika_void;
       if (expect_and_consume(state, ika_paren_open)) {
         // Function parameters are in their own scope
         //
@@ -494,72 +499,58 @@ static ast_node_t *parse_fn(parser_state_t *state) {
           if (decl)
             dynarray_append(decls, decl);
         } while (expect_and_consume(state, ika_comma));
-      }
-      if (expect_and_consume(state, ika_paren_close)) {
-        if (expect_and_consume(state, ika_colon)) {
-          token_t *next_token = get_token(state);
-          if (next_token->type > __ika_types_start &&
-              next_token->type < __ika_types_end) {
-            dynarray_append(returns, &next_token->type);
-            advance_token_pointer(state);
-          } else if (next_token->type == ika_paren_open) {
-            advance_token_pointer(state);
-            do {
-              next_token = get_token(state);
-              if (next_token->type > __ika_types_start &&
-                  next_token->type < __ika_types_end)
-                dynarray_append(returns, &next_token->type);
+
+        if (expect_and_consume(state, ika_paren_close)) {
+          if (expect_and_consume(state, ika_colon)) {
+            token_t *next_token = get_token(state);
+            if (next_token->type > __ika_types_start &&
+                next_token->type < __ika_types_end) {
+              return_type = next_token->type;
               advance_token_pointer(state);
-            } while (expect_and_consume(state, ika_comma));
-            if (!expect_and_consume(state, ika_paren_close)) {
-              token_t *err_token = get_token(state);
-              syntax_error_t err = {.column = err_token->position.column,
-                                    .line = err_token->position.line,
-                                    .pass = parsing_pass,
-                                    .message =
-                                        cstr("Missing closing parenthesis"),
-                                    .hint = cstr("Add a closing parenthesis")};
-              dynarray_append(state->errors, &err);
-              return NULL;
+            } else {
+              // Error expected a type
             }
           } else {
-            token_t *err_token = get_token(state);
-            syntax_error_t err = {
-                .column = err_token->position.column,
-                .line = err_token->position.line,
-                .pass = parsing_pass,
-                .message = cstr("Missing opening parenthesis"),
-                .hint = cstr(
-                    "Functions require a parenthesised parameter list even if it's empty.\n \
+            // Error missing closing parenthesis
+          }
+        }
+      } else {
+        token_t *err_token = get_token(state);
+        syntax_error_t err = {
+            .column = err_token->position.column,
+            .line = err_token->position.line,
+            .pass = parsing_pass,
+            .message = cstr("Missing opening parenthesis"),
+            .hint = cstr(
+                "Functions require a parenthesised parameter list even if it's empty.\n \
               \n\n \
               Examples:\n \
               \tfn myfunc(): int \n\
               \tfn myfunc(x: int): int\n\
               \tThe return type is optional, and if omitted defaults to void\n \
               \tfn myfunc()\n")};
-            dynarray_append(state->errors, &err);
-            return NULL;
-          }
-        }
-        ast_node_t *block = parse_block(state);
-        if (block) {
-          // Restore scope to outer scope so function is defined in the proper
-          // symbol table
-          state->current_scope = function_scope;
-          add_to_symbol_table(state, symbol->symbol.value, ika_keyword_fn, true,
-                              token);
-          ast_node_t *node = make_node(state->allocator);
-          node->starting_token = token;
-          node->line = token->position.line;
-          node->column = token->position.line;
-          node->type = ast_fn;
-          node->fn.identifier = symbol;
-          node->fn.parameters = *decls;
-          node->fn.parameters_symbol_table = params_symbol_table;
-          node->fn.block = block;
-          node->fn.return_types = *returns;
-          return node;
-        }
+        dynarray_append(state->errors, &err);
+        return NULL;
+      }
+      ast_node_t *block = parse_block(state);
+      if (block) {
+        // Restore scope to outer scope so function is defined in the proper
+        // symbol table
+        state->current_scope = function_scope;
+        ast_node_t *node = make_node(state->allocator);
+        node->starting_token = token;
+        node->line = token->position.line;
+        node->column = token->position.line;
+        node->type = ast_fn;
+        node->fn.identifier = symbol;
+        node->fn.parameters = *decls;
+        node->fn.parameters_symbol_table = params_symbol_table;
+        node->fn.block = block;
+        node->fn.return_type = return_type;
+
+        add_to_symbol_table(state, symbol->symbol.value, ika_keyword_fn, true,
+                            token, node);
+        return node;
       }
     }
   }
@@ -618,36 +609,15 @@ static ast_node_t *parse_return(parser_state_t *state) {
   uint32_t starting_pos = state->current_token;
   if (token->type == ika_keyword_return) {
     advance_token_pointer(state);
-    token_t *next_token = get_token(state);
-    dynarray *returns = dynarray_init(state->allocator, sizeof(ast_node_t));
-    if (next_token->type == ika_paren_open) {
-      advance_token_pointer(state);
-      do {
-        ast_node_t *expr = parse_expr(state);
-        if (expr)
-          dynarray_append(returns, expr);
-      } while (expect_and_consume(state, ika_comma));
-      if (!expect_and_consume(state, ika_paren_close)) {
-        token_t *err_token = get_token(state);
-        syntax_error_t err = {
-            .column = err_token->position.column,
-            .line = err_token->position.line,
-            .pass = parsing_pass,
-            .message = cstr("Missing closing parenthesis around return type"),
-            .hint = cstr("")};
-        dynarray_append(state->errors, &err);
-      }
-    } else {
-      ast_node_t *expr = parse_expr(state);
-      if (expr)
-        dynarray_append(returns, expr);
-    }
+    // Will be null in the case of a bare return
+    ast_node_t *expr = parse_expr(state);
+
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
     node->line = token->position.line;
     node->column = token->position.line;
     node->type = ast_return;
-    node->returns.exprs = *returns;
+    node->returns.expr = expr;
     return node;
   }
   rollback_token_pointer(state, starting_pos);

@@ -8,21 +8,12 @@
 #include "symbol_table.h"
 #include "types.h"
 
-size_t determine_byte_size(e_ika_type type) {
+static uint32_t determine_byte_size(e_ika_type type) {
   switch (type) {
-  ika_bool:
-  ika_u8:
-  ika_i8 : { return 1; }
-  ika_i16:
-  ika_u16:
-  ika_f16 : { return 2; }
-  ika_i32:
-  ika_u32:
-  ika_f32 : { return 4; }
-  ika_i64:
-  ika_u64:
-  ika_f64 : { return 8; }
-  ika_rune : { return 4; }
+  case ika_int:
+    return 8;
+  case ika_float:
+    return 8;
   default: {
     return 8;
   }
@@ -58,7 +49,8 @@ symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, str key) {
 }
 
 IKA_ERROR symbol_table_insert(symbol_table_t *t, str name, e_ika_type type,
-                              bool constant, uint32_t line, uint32_t column) {
+                              bool constant, void *node_address,
+                              uint32_t line) {
   symbol_table_entry_t *entry =
       allocator_alloc_or_exit(t->allocator, sizeof(symbol_table_entry_t));
   str *entry_name = allocator_alloc_or_exit(t->allocator, sizeof(str));
@@ -67,14 +59,14 @@ IKA_ERROR symbol_table_insert(symbol_table_t *t, str name, e_ika_type type,
   entry->bytes = determine_byte_size(type);
   entry->type = type;
   entry->constant = constant;
+  entry->node_address = node_address;
   entry->line = line;
-  entry->column = column;
   if (!hashtbl_str_insert(
           t->table,
           (str_entry_t){.key = name, .valid = true, .value = entry})) {
     // The identifier is already in the symbol table.  That's an error.
     return VARIABLE_REDEFINITION_ERROR;
-  };
+  }
   return SUCCESS;
 }
 
@@ -127,8 +119,7 @@ void symbol_table_dump(symbol_table_t *t) {
     symbol_table_print_fill_space(19 - type_name.length);
     printf("| %i", entry->line);
     symbol_table_print_fill_space(6 - count_digits(entry->line));
-    printf("| %i", entry->column);
-    symbol_table_print_fill_space(7 - count_digits(entry->column));
+    printf("| %p", entry->node_address);
     printf("|\n");
   }
   printf("--------------------------------------------------------------------"

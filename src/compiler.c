@@ -13,7 +13,7 @@
 #include "symbol_table.h"
 #include "tokenize.h"
 
-int64_t time_in_ms() {
+static int64_t time_in_ms() {
   struct timespec now;
   timespec_get(&now, TIME_UTC);
   return ((int64_t)now.tv_sec) * 1000 + ((int64_t)now.tv_nsec) / 1000000;
@@ -75,7 +75,7 @@ void compile(compilation_unit_t *unit) {
   printf(" %li ms\n", time_in_ms() - start);
 
   /* Print tokens */
-  for (int i = 0; i < tokens->count; i++) {
+  for (uint64_t i = 0; i < tokens->count; i++) {
     tokenizer_print_token(stdout, dynarray_get(tokens, i));
     printf("\n");
   }

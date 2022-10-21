@@ -30,8 +30,18 @@ void print_node_as_sexpr(ast_node_t *node) {
            node->literal.string_value.ptr);
   } else if (node->type == ast_symbol) {
     printf("%.*s", node->symbol.value.length, node->symbol.value.ptr);
+  } else if (node->type == ast_fn_call) {
+    printf("(%.*s ", node->fn_call.identifer->symbol.value.length,
+           node->fn_call.identifer->symbol.value.ptr);
+    for (uint32_t i = 0; i < node->fn_call.exprs.count; i++) {
+      ast_node_t *expr = dynarray_get(&node->fn_call.exprs, i);
+      print_node_as_sexpr(expr);
+      if (i < node->fn_call.exprs.count - 1)
+        printf(", ");
+    }
+    printf(")");
   } else {
-    printf("Unhandled node type: %d", node->type);
+    printf("print_node_as_sexpr: Unhandled node type: %d", node->type);
   }
 }
 
@@ -92,18 +102,7 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
         printf(", ");
     }
     printf(") returns ");
-    if (node->fn.return_types.count == 0) {
-      printf("void");
-    } else {
-      printf("(");
-      for (int i = 0; i < node->fn.return_types.count; i++) {
-        e_ika_type *return_type = dynarray_get(&node->fn.return_types, i);
-        printf("%s", ika_base_type_table[*return_type].label);
-        if (i < node->fn.return_types.count - 1)
-          printf(", ");
-      }
-      printf(")");
-    }
+    printf("%s", ika_base_type_table[node->fn.return_type].label);
     printf("\n");
     print_node_as_tree(node->fn.block, indent_level);
     break;
@@ -152,16 +151,10 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     print_indent(indent_level);
     printf("%lc ", 0x251c);
     printf("return ");
-    dynarray exprs = node->returns.exprs;
-    if (exprs.count > 0) {
-      printf("(");
-      for (int i = 0; i < exprs.count; i++) {
-        print_node_as_sexpr(dynarray_get(&exprs, i));
-        if (i < exprs.count - 1)
-          printf(", ");
-      }
-      printf(")");
-    }
+    ast_node_t *expr = node->returns.expr;
+    printf("(");
+    print_node_as_sexpr(expr);
+    printf(")");
     printf("\n");
     break;
   }

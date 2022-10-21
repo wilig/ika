@@ -76,7 +76,17 @@ static e_ika_type determine_type_for_expression(analyzer_context_t ctx,
       return ika_unknown;
     }
   }
+  case ast_fn_call: {
+    symbol_table_entry_t *entry =
+        symbol_table_lookup(ctx.parent->block.symbol_table,
+                            expression->fn_call.identifer->symbol.value);
+    ast_node_t *function = (ast_node_t *)entry->node_address;
+    return function->fn.return_type;
+  }
+  // TODO: list all possibilities and make all unexpected entries fatal compiler
+  // errors
   default: {
+    printf("Unexpected expression type of %d\n", expression->type);
     assert(false);
   }
   }
@@ -105,55 +115,30 @@ static void analyze_update_symbol_table(symbol_table_t *symbol_table,
   }
 }
 
-static void analyzer_type_check_function_return(analyzer_context_t ctx,
-                                                ast_node_t *return_node,
-                                                dynarray expected_return_types,
-                                                dynarray actual_return_exprs) {
-  if (expected_return_types.count == actual_return_exprs.count) {
-    for (uint32_t rt = 0; rt < expected_return_types.count; rt++) {
-      e_ika_type *expected_return_type =
-          dynarray_get(&expected_return_types, rt);
-      ast_node_t *return_expr = dynarray_get(&actual_return_exprs, rt);
-      e_ika_type actual_return_type =
-          determine_type_for_expression(ctx, return_expr);
-      if (*expected_return_type != actual_return_type) {
-        analyzer_report_syntax_error(
-            ctx, return_expr, cstr("Unexpected type"),
-            format(ctx.allocator,
-                   "The function claims to return %s but this expression "
-                   "is of type %s.",
-                   ika_base_type_table[*expected_return_type].label,
-                   ika_base_type_table[actual_return_type].label));
-      }
-    }
-  } else {
-    analyzer_report_syntax_error(
-        ctx, return_node, cstr("Return argument mismatch"),
-        format(ctx.allocator,
-               "The function claims to return %d results but returns %d "
-               "instead.",
-               expected_return_types.count, actual_return_exprs.count));
-  }
-}
-
 static void analyzer_resolve_function_return(analyzer_context_t ctx,
-                                             ast_node_t *fn) {
-  if (fn->fn.return_types.count == 0 &&
-      fn->fn.block->block.return_statement == NULL) {
-    return;
-  }
+                                             ast_node_t *node) {
+
   // Simple case: the return statement is in the root function block
-  if (fn->fn.block->block.return_statement) {
-    // Set the parent to the block containing the return statement
-    // so symbol table chain lookup will start at the lowest block
-    ctx.parent = fn->fn.block;
-    analyzer_type_check_function_return(
-        ctx, fn->fn.block->block.return_statement, fn->fn.return_types,
-        fn->fn.block->block.return_statement->returns.exprs);
-    return;
-  } else {
-    ast_node_t *last_node = dynarray_get(&fn->fn.block->block.nodes,
-                                         fn->fn.block->block.nodes.count - 1);
+  if (node->fn.block->block.return_statement) {
+    // TODO: Stick a void into a bare returns return_expr
+    ctx.parent = node->fn.block; // Important: update the code to allow proper
+                                 // symbol table lookup
+    e_ika_type expected_return_type = node->fn.return_type;
+    e_ika_type actual_return_type = determine_type_for_expression(
+        ctx, node->fn.block->block.return_statement->returns.expr);
+    if (expected_return_type != actual_return_type) {
+      analyzer_report_syntax_error(
+          ctx, node->fn.block->block.return_statement->returns.expr,
+          cstr("Unexpected type"),
+          format(ctx.allocator,
+                 "The function claims to return %s but this expression "
+                 "is of type %s.",
+                 ika_base_type_table[expected_return_type].label,
+                 ika_base_type_table[actual_return_type].label));
+    }
+  } else if (node->fn.return_type != ika_void) {
+    ast_node_t *last_node = dynarray_get(&node->fn.block->block.nodes,
+                                         node->fn.block->block.nodes.count - 1);
     analyzer_report_syntax_error(ctx, last_node,
                                  cstr("Missing return statement"), cstr(""));
   }
@@ -161,11 +146,33 @@ static void analyzer_resolve_function_return(analyzer_context_t ctx,
   // for a return statement.  All paths must have a return.
 }
 
-// DONE: Do whole tree, not just the root node
-// DONE: Error handling!
-// DONE: Symbol lookup
-// DONE: Function analysis  (Return analysis, is "interesting")
-// DONE: If statement analysis
+static void analyze_fn_call(analyzer_context_t ctx, fn_call_t *fn_call) {
+  symbol_table_entry_t *entry = symbol_table_lookup(
+      ctx.parent->block.symbol_table, fn_call->identifer->symbol.value);
+  ast_node_t *function = (ast_node_t *)entry->node_address;
+  dynarray params = function->fn.parameters;
+  dynarray exprs = fn_call->exprs;
+  for (uint32_t i = 0; i < params.count; i++) {
+    ast_node_t *param = dynarray_get(&params, i);
+    ast_node_t *expr = dynarray_get(&exprs, i);
+    e_ika_type expr_type = determine_type_for_expression(ctx, expr);
+    if (param->decl.type != expr_type) {
+      str param_name = param->decl.identifier->symbol.value;
+      analyzer_report_syntax_error(
+          ctx, expr, cstr("Unexpected function argument type"),
+          format(ctx.allocator,
+                 "Parameter '%.*s' is of type %s, but a %s was given.",
+                 param_name.length, param_name.ptr,
+                 ika_base_type_table[param->decl.type].label,
+                 ika_base_type_table[expr_type].label));
+    }
+  }
+}
+
+// DONE: Figure out symbol table storage of functions
+//   - Need to know the return type of the function for type checking
+//   - What if a function returns a function (probably over reaching)
+//   - DO NOT continue to support multiple return values.
 // TODO: High/medium level IR perhaps?
 static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
   assert(root->type == ast_block);
@@ -185,9 +192,6 @@ static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
       analyzer_resolve_types(ctx, child);
       break;
     case ast_fn: {
-      printf("analyzing function %.*s\n",
-             child->fn.identifier->symbol.value.length,
-             child->fn.identifier->symbol.value.ptr);
       ast_node_t *orig_function = ctx.current_function;
       ctx.current_function = child;
       analyzer_resolve_types(ctx, child->fn.block);
@@ -210,8 +214,11 @@ static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
       }
       break;
     }
+    case ast_fn_call: {
+      analyze_fn_call(ctx, &child->fn_call);
+      break;
+    }
     case ast_return:
-    case ast_fn_call:
     case ast_bool_literal:
     case ast_float_literal:
     case ast_str_literal:

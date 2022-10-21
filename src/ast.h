@@ -61,7 +61,7 @@ typedef struct {
 } if_t;
 
 typedef struct {
-  dynarray exprs;
+  ast_node_t *expr;
 } return_t;
 
 typedef struct block_t {
@@ -79,7 +79,7 @@ typedef struct {
   ast_node_t *identifier;
   dynarray parameters;
   symbol_table_t *parameters_symbol_table;
-  dynarray return_types; // type: e_ika_type(s)
+  e_ika_type return_type;
   ast_node_t *block;
 } fn_t;
 
