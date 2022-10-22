@@ -17,10 +17,11 @@ typedef struct scope_t {
 
 typedef struct {
   allocator_t allocator;
-  str src_file;
-  str *namespace_name;
+  char *src_file;
+  char *namespace_name;
 
-  str *buffer;
+  char *buffer;
+  u64 buffer_length;
   dynarray *tokens;
   int current_token_idx;
 

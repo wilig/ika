@@ -13,7 +13,7 @@ typedef enum {
   ika_void,
   __ika_types_end,
 
-  ika_identifier,
+  ika_symbol,
 
   __ika_literal_start,
   ika_int_literal,
@@ -85,7 +85,7 @@ static ika_type_map_entry_t ika_base_type_table[] = {
     {.txt = "any", .type = ika_any, .label = "ika_any"},
     {.txt = "void", .type = ika_void, .label = "ika_void"},
     {.txt = "<!illegal>", .type = __ika_types_end, .label = "__ika_types_end"},
-    {.txt = "identifier", .type = ika_identifier, .label = "ika_identifier"},
+    {.txt = "symbol", .type = ika_symbol, .label = "ika_symbol"},
     {.txt = "<!illegal>",
      .type = __ika_literal_start,
      .label = "__ika_literal_start"},

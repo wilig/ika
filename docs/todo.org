@@ -13,10 +13,17 @@
 * DONE Handle calling a function
 * DONE Figure out what information is needed in the symbol table for functions
 * DONE Handle a function being part of an expression ( 2 * double(4) )
-* TODO add macros for dynarray
-* TODO Remove symbol_t and use char * for identifiers in the ast nodes.
-* TODO Stop using str, and revert to char *  (big update)
+* NO Remove symbol_t and use char * for identifiers in the ast nodes.
+* DONE Stop using str, and revert to char *  (big update)
 * TODO Move errors out to a separate file, and use an enum
+* TODO Update compilation_unit to store everything related to compilation?
+* TODO Visit every nested block in a function a prove all exits have required returns
+* TODO Make true/false reserved words as well as values??
+* TODO Rename block to scope??
+* TODO Use parse_decl in assignment and remove the untyped assign operator
+* TODO Use levenstein(sp?) distance to detect symbol typos
+* TODO Add more asserts to switch statements default case
+* TODO add macros for dynarray
 * TODO Command line flags for printing out debug structures (tokens, parse tree, symbol tables, etc)
 * TODO Improve printing of symbol tables, and print the heirarchy
 * TODO Better error messages!

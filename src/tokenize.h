@@ -10,31 +10,33 @@
 #include "types.h"
 
 typedef struct {
-  uint32_t line;
-  uint32_t column;
+  u32 line;
+  u32 column;
 } token_position_t;
 
 typedef struct {
   token_position_t position;
   e_ika_type type;
-  str value;
+  const char *value;
 } token_t;
 
 typedef struct {
-  uint32_t pos;
-  str source;
+  u32 pos;
+  char *source;
+  u64 source_length;
   allocator_t allocator;
   dynarray *errors;
-} tokenizer_input_stream;
+} tokenizer_input_stream_t;
 
 // An array of tokens
-dynarray *tokenizer_scan(allocator_t allocator, str source, dynarray *errors);
+dynarray *tokenizer_scan(allocator_t allocator, char *source, u64 source_length,
+                         dynarray *errors);
 
 // Debugging stuff
-void tokenizer_print_token(FILE *, void *);
+void tokenizer_print_token(FILE *, token_t *);
 
-str tokenizer_get_token_type_label(token_t *);
+const char *tokenizer_get_token_type_label(token_t *);
 
-str tokenizer_get_token_type_name(e_ika_type);
+const char *tokenizer_get_token_type_name(e_ika_type);
 
-void tokenizer_dump_context(token_t **, uint32_t);
+void tokenizer_dump_context(token_t **, u32);

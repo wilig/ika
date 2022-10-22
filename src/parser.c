@@ -6,13 +6,12 @@
 
 #include "ast.h"
 #include "errors.h"
+#include "helpers.h"
 #include "parser.h"
 #include "symbol_table.h"
 #include "tokenize.h"
 #include "types.h"
 
-// TODO: Push scope/Pop scope ?
-//
 ast_node_t *parse_node(parser_state_t *);
 ast_node_t *parse_expr(parser_state_t *);
 
@@ -46,17 +45,17 @@ static bool expect_and_consume(parser_state_t *state, e_ika_type type) {
   return false;
 }
 
-static void add_to_symbol_table(parser_state_t *state, str identifier,
+static void add_to_symbol_table(parser_state_t *state, char *symbol,
                                 e_ika_type type, bool constant, token_t *token,
                                 ast_node_t *node) {
-  if (symbol_table_insert(state->current_scope, identifier, type, constant,
-                          node, token->position.line) != SUCCESS) {
+  if (symbol_table_insert(state->current_scope, symbol, type, constant, node,
+                          token->position.line) != SUCCESS) {
     syntax_error_t err = {
         .column = token->position.column,
         .line = token->position.line,
         .pass = parsing_pass,
-        .message = cstr("Redefinition of existing identifier"),
-        .hint = cstr("Try using a different name or removing the duplicate.")};
+        .message = "Redefinition of existing identifier",
+        .hint = "Try using a different name or removing the duplicate."};
     dynarray_append(state->errors, &err);
   }
 }
@@ -74,8 +73,7 @@ static ast_node_t *parse_int_literal(parser_state_t *state) {
     node->line = token->position.line;
     node->column = token->position.column;
     node->type = ast_int_literal;
-    node->literal.integer_value =
-        atoi(str_to_cstr(state->allocator, token->value));
+    node->literal.integer_value = atoi(token->value);
     node->total_tokens = 1;
     advance_token_pointer(state);
     return node;
@@ -91,8 +89,7 @@ static ast_node_t *parse_float_literal(parser_state_t *state) {
     node->line = token->position.line;
     node->column = token->position.column;
     node->type = ast_float_literal;
-    node->literal.float_value =
-        atof(str_to_cstr(state->allocator, token->value));
+    node->literal.float_value = atof(token->value);
     node->total_tokens = 1;
     advance_token_pointer(state);
     return node;
@@ -124,7 +121,7 @@ static ast_node_t *parse_bool_literal(parser_state_t *state) {
     node->line = token->position.line;
     node->column = token->position.column;
     node->type = ast_bool_literal;
-    node->literal.integer_value = str_eq(token->value, cstr("true"));
+    node->literal.integer_value = streq(token->value, "true");
     node->total_tokens = 1;
     advance_token_pointer(state);
     return node;
@@ -134,7 +131,7 @@ static ast_node_t *parse_bool_literal(parser_state_t *state) {
 
 static ast_node_t *parse_symbol(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type == ika_identifier) {
+  if (token->type == ika_symbol) {
     ast_node_t *node = make_node(state->allocator);
     node->starting_token = token;
     node->line = token->position.line;
@@ -151,7 +148,7 @@ static ast_node_t *parse_symbol(parser_state_t *state) {
 static ast_node_t *parse_fn_call(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  if (token->type == ika_identifier) {
+  if (token->type == ika_symbol) {
     ast_node_t *symbol = parse_symbol(state);
     if (expect_and_consume(state, ika_paren_open)) {
       dynarray *exprs = dynarray_init(state->allocator, sizeof(ast_node_t));
@@ -166,7 +163,7 @@ static ast_node_t *parse_fn_call(parser_state_t *state) {
         node->line = token->position.line;
         node->column = token->position.column;
         node->type = ast_fn_call;
-        node->fn_call.identifer = symbol;
+        node->fn_call.symbol = symbol;
         node->fn_call.exprs = *exprs;
         return node;
       }
@@ -202,7 +199,7 @@ static ast_node_t *parse_literal(parser_state_t *state) {
     return parse_bool_literal(state);
   case ika_str_literal:
     return parse_str_literal(state);
-  case ika_identifier: {
+  case ika_symbol: {
     // Could be a function call or an identifier
     ast_node_t *fn_call_node = parse_fn_call(state);
     if (fn_call_node)
@@ -332,11 +329,10 @@ static ast_node_t *parse_assignment(parser_state_t *state) {
     advance_token_pointer(state);
     token = get_token(state);
   }
-  if (token->type == ika_identifier) {
+  if (token->type == ika_symbol) {
     ast_node_t *symbol = parse_symbol(state);
     e_ika_type type = ika_unknown;
     if (symbol) {
-      // TODO: Maybe just accept it here, and generate an error in analysis?
       // Assignment to a previously defined var aka x = 10
       if (expect_and_consume(state, ika_assign)) {
         symbol_table_entry_t *var =
@@ -346,14 +342,14 @@ static ast_node_t *parse_assignment(parser_state_t *state) {
           type = var->type;
         } else {
           // Trying to assign to an undefined symbol is an error
-          syntax_error_t err = {
-              .column = symbol->column,
-              .line = symbol->line,
-              .pass = parsing_pass,
-              .message = cstr("Undefined variable name"),
-              .hint =
-                  format(state->allocator, "'%s' is not defined in this scope.",
-                         str_to_cstr(state->allocator, symbol->symbol.value))};
+          syntax_error_t err = {.column = symbol->column,
+                                .line = symbol->line,
+                                .pass = parsing_pass,
+                                .message = "Undefined variable name",
+                                .hint =
+                                    format(state->allocator,
+                                           "'%s' is not defined in this scope.",
+                                           symbol->symbol.value)};
           dynarray_append(state->errors, &err);
           type = ika_unknown;
         }
@@ -377,7 +373,7 @@ static ast_node_t *parse_assignment(parser_state_t *state) {
           node->line = node->starting_token->position.line;
           node->column = node->starting_token->position.column;
           node->type = ast_assignment;
-          node->assignment.identifier = symbol;
+          node->assignment.symbol = symbol;
           node->assignment.type = type;
           node->assignment.expr = expr;
           node->assignment.constant = constant;
@@ -410,7 +406,7 @@ static e_ika_type parse_ika_type_decl(parser_state_t *state) {
 static ast_node_t *parse_decl(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  if (token->type == ika_identifier) {
+  if (token->type == ika_symbol) {
     ast_node_t *symbol = parse_symbol(state);
     if (symbol) {
       e_ika_type type = parse_ika_type_decl(state);
@@ -421,7 +417,7 @@ static ast_node_t *parse_decl(parser_state_t *state) {
         node->starting_token = token;
         node->line = token->position.line;
         node->column = token->position.line;
-        node->decl.identifier = symbol;
+        node->decl.symbol = symbol;
         node->decl.type = type;
         return node;
       }
@@ -462,8 +458,8 @@ static ast_node_t *parse_block(parser_state_t *state) {
             .column = child_node->starting_token->position.column,
             .line = child_node->starting_token->position.line,
             .pass = parsing_pass,
-            .message = cstr("Statement after return"),
-            .hint = cstr("Statements after a return have no effect")};
+            .message = "Statement after return",
+            .hint = "Statements after a return have no effect"};
         dynarray_append(state->errors, &err);
       }
     }
@@ -520,15 +516,15 @@ static ast_node_t *parse_fn(parser_state_t *state) {
             .column = err_token->position.column,
             .line = err_token->position.line,
             .pass = parsing_pass,
-            .message = cstr("Missing opening parenthesis"),
-            .hint = cstr(
+            .message = "Missing opening parenthesis",
+            .hint =
                 "Functions require a parenthesised parameter list even if it's empty.\n \
               \n\n \
               Examples:\n \
               \tfn myfunc(): int \n\
               \tfn myfunc(x: int): int\n\
               \tThe return type is optional, and if omitted defaults to void\n \
-              \tfn myfunc()\n")};
+              \tfn myfunc()\n"};
         dynarray_append(state->errors, &err);
         return NULL;
       }
@@ -542,7 +538,7 @@ static ast_node_t *parse_fn(parser_state_t *state) {
         node->line = token->position.line;
         node->column = token->position.line;
         node->type = ast_fn;
-        node->fn.identifier = symbol;
+        node->fn.symbol = symbol;
         node->fn.parameters = *decls;
         node->fn.parameters_symbol_table = params_symbol_table;
         node->fn.block = block;
@@ -587,12 +583,11 @@ static ast_node_t *parse_if_statement(parser_state_t *state) {
                 .column = err_token->position.column,
                 .line = err_token->position.line,
                 .pass = parsing_pass,
-                .message = cstr("Missing block for else clause"),
-                .hint =
-                    cstr("Else clauses require blocks of code to be executed \
+                .message = "Missing block for else clause",
+                .hint = "Else clauses require blocks of code to be executed \
                        if the else branch is choosen. \n\n \
                        Example:\n\n \
-                       if (false) { x := 100} else { x:= 200 }\n")};
+                       if (false) { x := 100} else { x:= 200 }\n"};
             dynarray_append(state->errors, &err);
           }
         }
@@ -656,8 +651,8 @@ ast_node_t *parse_node(parser_state_t *state) {
   syntax_error_t err = {.column = err_token->position.column,
                         .line = err_token->position.line,
                         .pass = parsing_pass,
-                        .message = cstr("Unexpected token"),
-                        .hint = cstr("")};
+                        .message = "Unexpected token",
+                        .hint = ""};
   dynarray_append(state->errors, &err);
   // Skip the problematic token
   advance_token_pointer(state);

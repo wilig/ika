@@ -3,6 +3,8 @@
 #include "../lib/dynarray.h"
 #include "../lib/str.h"
 
+#include "defines.h"
+
 typedef enum {
   SUCCESS,
   VARIABLE_REDEFINITION_ERROR,
@@ -19,8 +21,8 @@ typedef struct {
   compiler_pass pass;
   uint32_t line;
   uint32_t column;
-  str message;
-  str hint;
+  char *message;
+  char *hint;
 } syntax_error_t;
 
-void errors_display_parser_errors(dynarray *errors, str source);
+void errors_display_parser_errors(dynarray *errors, char *source);

@@ -15,7 +15,7 @@
 
 typedef struct {
   allocator_t allocator;
-  uint32_t current_token;
+  u32 current_token;
   symbol_table_t *current_scope;
   dynarray *tokens;
   dynarray *errors;

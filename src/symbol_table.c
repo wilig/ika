@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "../lib/allocator.h"
 #include "../lib/hashtbl.h"
@@ -14,9 +15,8 @@ static uint32_t determine_byte_size(e_ika_type type) {
     return 8;
   case ika_float:
     return 8;
-  default: {
+  default:
     return 8;
-  }
   }
 }
 
@@ -36,8 +36,8 @@ symbol_table_t *make_symbol_table(allocator_t allocator,
 
 // Lookup the given symbol in the symbol table, if it's not found in the
 // current scope, traverse back up the chain trying to resolve it.
-symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, str key) {
-  str_entry_t *entry = hashtbl_str_lookup(t->table, key);
+symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, char *key) {
+  str_entry_t *entry = hashtbl_str_lookup(t->table, cstr(key));
   if (entry) {
     return (symbol_table_entry_t *)entry->value;
   } else if (t->parent) { // Traverse up the chain trying to resolve
@@ -48,14 +48,14 @@ symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, str key) {
   return NULL;
 }
 
-IKA_ERROR symbol_table_insert(symbol_table_t *t, str name, e_ika_type type,
+IKA_ERROR symbol_table_insert(symbol_table_t *t, char *name, e_ika_type type,
                               bool constant, void *node_address,
                               uint32_t line) {
   symbol_table_entry_t *entry =
       allocator_alloc_or_exit(t->allocator, sizeof(symbol_table_entry_t));
-  str *entry_name = allocator_alloc_or_exit(t->allocator, sizeof(str));
-  str_copy(t->allocator, name, entry_name);
-  entry->identifer = entry_name;
+  str *entry_key = allocator_alloc_or_exit(t->allocator, sizeof(str));
+  str_copy(t->allocator, cstr(name), entry_key);
+  entry->symbol = name;
   entry->bytes = determine_byte_size(type);
   entry->type = type;
   entry->constant = constant;
@@ -63,14 +63,14 @@ IKA_ERROR symbol_table_insert(symbol_table_t *t, str name, e_ika_type type,
   entry->line = line;
   if (!hashtbl_str_insert(
           t->table,
-          (str_entry_t){.key = name, .valid = true, .value = entry})) {
+          (str_entry_t){.key = *entry_key, .valid = true, .value = entry})) {
     // The identifier is already in the symbol table.  That's an error.
     return VARIABLE_REDEFINITION_ERROR;
   }
   return SUCCESS;
 }
 
-void symbol_table_add_reference(symbol_table_t *t, str key, uint32_t line,
+void symbol_table_add_reference(symbol_table_t *t, char *key, uint32_t line,
                                 uint32_t column) {
   symbol_table_entry_t *entry = symbol_table_lookup(t, key);
   if (entry) {
@@ -84,16 +84,16 @@ void symbol_table_add_reference(symbol_table_t *t, str key, uint32_t line,
   }
 }
 
-static void symbol_table_print_fill_space(int num_spaces) {
-  for (int i = 0; i < num_spaces; i++) {
+static void symbol_table_print_fill_space(u64 num_spaces) {
+  for (u64 i = 0; i < num_spaces; i++) {
     printf(" ");
   }
 }
 
-int count_digits(size_t n) {
+static u64 count_digits(u64 n) {
   if (n == 0)
     return 1;
-  int count = 0;
+  u64 count = 0;
   while (n != 0) {
     n = n / 10;
     count++;
@@ -110,10 +110,11 @@ void symbol_table_dump(symbol_table_t *t) {
          "|--------|\n");
 
   hashtbl_str_keys_t ht_keys = hashtbl_str_get_keys(t->table);
-  for (int i = 0; i < ht_keys.count; i++) {
-    symbol_table_entry_t *entry = symbol_table_lookup(t, *ht_keys.keys[i]);
-    printf("| %.*s", entry->identifer->length, entry->identifer->ptr);
-    symbol_table_print_fill_space(37 - entry->identifer->length);
+  for (u32 i = 0; i < ht_keys.count; i++) {
+    symbol_table_entry_t *entry =
+        symbol_table_lookup(t, str_to_cstr(t->allocator, *ht_keys.keys[i]));
+    printf("| %s", entry->symbol);
+    symbol_table_print_fill_space(37 - strlen(entry->symbol));
     str type_name = cstr(ika_base_type_table[entry->type].label);
     printf("| %s", type_name.ptr);
     symbol_table_print_fill_space(19 - type_name.length);

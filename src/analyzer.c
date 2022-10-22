@@ -10,8 +10,8 @@
 #include "types.h"
 
 static void analyzer_report_syntax_error(analyzer_context_t ctx,
-                                         ast_node_t *node, str message,
-                                         str hint) {
+                                         ast_node_t *node, char *message,
+                                         char *hint) {
   syntax_error_t err = {.column = node->column,
                         .line = node->line,
                         .pass = typing_pass,
@@ -38,11 +38,10 @@ static e_ika_type determine_type_for_expression(analyzer_context_t ctx,
     if (entry) {
       return entry->type;
     } else {
-      // TODO: Possibly use levenstein distance to find likely typos
-      analyzer_report_syntax_error(
-          ctx, expression, cstr("Undefined identifier"),
-          format(ctx.allocator, "'%s' is undefined within this scope",
-                 str_to_cstr(ctx.allocator, expression->symbol.value)));
+      analyzer_report_syntax_error(ctx, expression, "Undefined identifier",
+                                   format(ctx.allocator,
+                                          "'%s' is undefined within this scope",
+                                          expression->symbol.value));
     }
     return ika_unknown;
   }
@@ -67,7 +66,7 @@ static e_ika_type determine_type_for_expression(analyzer_context_t ctx,
       return ika_unknown;
     } else {
       analyzer_report_syntax_error(
-          ctx, expression->expr.right, cstr("Unsupported operation"),
+          ctx, expression->expr.right, "Unsupported operation",
           format(ctx.allocator,
                  "The %s operator is not supported between %s and %s.",
                  ika_base_type_table[expression->expr.op].txt,
@@ -79,12 +78,10 @@ static e_ika_type determine_type_for_expression(analyzer_context_t ctx,
   case ast_fn_call: {
     symbol_table_entry_t *entry =
         symbol_table_lookup(ctx.parent->block.symbol_table,
-                            expression->fn_call.identifer->symbol.value);
+                            expression->fn_call.symbol->symbol.value);
     ast_node_t *function = (ast_node_t *)entry->node_address;
     return function->fn.return_type;
   }
-  // TODO: list all possibilities and make all unexpected entries fatal compiler
-  // errors
   default: {
     printf("Unexpected expression type of %d\n", expression->type);
     assert(false);
@@ -98,7 +95,7 @@ static void analyze_assignment(analyzer_context_t ctx, ast_node_t *node) {
     node->assignment.type = type;
   } else if (node->assignment.type != type) {
     analyzer_report_syntax_error(
-        ctx, node->assignment.expr, cstr("Type mismatch"),
+        ctx, node->assignment.expr, "Type mismatch",
         format(ctx.allocator,
                "Cannot assign type %s to type %s, these types are not "
                "convertable.",
@@ -108,8 +105,8 @@ static void analyze_assignment(analyzer_context_t ctx, ast_node_t *node) {
 }
 
 static void analyze_update_symbol_table(symbol_table_t *symbol_table,
-                                        str identifer, e_ika_type type) {
-  symbol_table_entry_t *entry = symbol_table_lookup(symbol_table, identifer);
+                                        char *symbol, e_ika_type type) {
+  symbol_table_entry_t *entry = symbol_table_lookup(symbol_table, symbol);
   if (entry) {
     entry->type = type;
   }
@@ -120,7 +117,6 @@ static void analyzer_resolve_function_return(analyzer_context_t ctx,
 
   // Simple case: the return statement is in the root function block
   if (node->fn.block->block.return_statement) {
-    // TODO: Stick a void into a bare returns return_expr
     ctx.parent = node->fn.block; // Important: update the code to allow proper
                                  // symbol table lookup
     e_ika_type expected_return_type = node->fn.return_type;
@@ -129,7 +125,7 @@ static void analyzer_resolve_function_return(analyzer_context_t ctx,
     if (expected_return_type != actual_return_type) {
       analyzer_report_syntax_error(
           ctx, node->fn.block->block.return_statement->returns.expr,
-          cstr("Unexpected type"),
+          "Unexpected type",
           format(ctx.allocator,
                  "The function claims to return %s but this expression "
                  "is of type %s.",
@@ -139,8 +135,8 @@ static void analyzer_resolve_function_return(analyzer_context_t ctx,
   } else if (node->fn.return_type != ika_void) {
     ast_node_t *last_node = dynarray_get(&node->fn.block->block.nodes,
                                          node->fn.block->block.nodes.count - 1);
-    analyzer_report_syntax_error(ctx, last_node,
-                                 cstr("Missing return statement"), cstr(""));
+    analyzer_report_syntax_error(ctx, last_node, "Missing return statement",
+                                 "");
   }
   // TODO: Eventually need to visit every child block recursively and check
   // for a return statement.  All paths must have a return.
@@ -148,7 +144,7 @@ static void analyzer_resolve_function_return(analyzer_context_t ctx,
 
 static void analyze_fn_call(analyzer_context_t ctx, fn_call_t *fn_call) {
   symbol_table_entry_t *entry = symbol_table_lookup(
-      ctx.parent->block.symbol_table, fn_call->identifer->symbol.value);
+      ctx.parent->block.symbol_table, fn_call->symbol->symbol.value);
   ast_node_t *function = (ast_node_t *)entry->node_address;
   dynarray params = function->fn.parameters;
   dynarray exprs = fn_call->exprs;
@@ -157,35 +153,29 @@ static void analyze_fn_call(analyzer_context_t ctx, fn_call_t *fn_call) {
     ast_node_t *expr = dynarray_get(&exprs, i);
     e_ika_type expr_type = determine_type_for_expression(ctx, expr);
     if (param->decl.type != expr_type) {
-      str param_name = param->decl.identifier->symbol.value;
+      char *param_name = param->decl.symbol->symbol.value;
       analyzer_report_syntax_error(
-          ctx, expr, cstr("Unexpected function argument type"),
+          ctx, expr, "Unexpected function argument type",
           format(ctx.allocator,
-                 "Parameter '%.*s' is of type %s, but a %s was given.",
-                 param_name.length, param_name.ptr,
-                 ika_base_type_table[param->decl.type].label,
+                 "Parameter '%s' is of type %s, but a %s was given.",
+                 param_name, ika_base_type_table[param->decl.type].label,
                  ika_base_type_table[expr_type].label));
     }
   }
 }
 
-// DONE: Figure out symbol table storage of functions
-//   - Need to know the return type of the function for type checking
-//   - What if a function returns a function (probably over reaching)
-//   - DO NOT continue to support multiple return values.
-// TODO: High/medium level IR perhaps?
 static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
   assert(root->type == ast_block);
   symbol_table_t *current_symbol_table = root->block.symbol_table;
   ctx.parent = root;
   dynarray children = root->block.nodes;
-  for (uint64_t i = 0; i < children.count; i++) {
+  for (u64 i = 0; i < children.count; i++) {
     ast_node_t *child = dynarray_get(&children, i);
     switch (child->type) {
     case ast_assignment:
       analyze_assignment(ctx, child);
       analyze_update_symbol_table(current_symbol_table,
-                                  child->assignment.identifier->symbol.value,
+                                  child->assignment.symbol->symbol.value,
                                   child->assignment.type);
       break;
     case ast_block:
@@ -209,8 +199,8 @@ static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
         }
       } else {
         analyzer_report_syntax_error(
-            ctx, child->if_statement.expr, cstr("Must be boolean"),
-            cstr("If statement expressions must evaluate to a boolean."));
+            ctx, child->if_statement.expr, "Must be boolean",
+            "If statement expressions must evaluate to a boolean.");
       }
       break;
     }
@@ -241,5 +231,4 @@ void analyzer_analyze(compilation_unit_t *unit) {
                             .current_function = NULL};
 
   analyzer_resolve_types(ctx, unit->root);
-  printf("Error count is %li\n", ctx.errors->count);
 }

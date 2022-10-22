@@ -25,14 +25,14 @@ typedef struct ast_node_t ast_node_t;
 
 typedef struct {
   union {
-    str string_value;
-    uint64_t integer_value;
-    float float_value;
+    const char *string_value;
+    i64 integer_value;
+    f64 float_value;
   };
 } literal_t;
 
 typedef struct {
-  str value;
+  char *value;
 } symbol_t;
 
 typedef struct {
@@ -49,7 +49,7 @@ typedef struct {
 
 typedef struct {
   bool constant;
-  ast_node_t *identifier;
+  ast_node_t *symbol;
   e_ika_type type;
   ast_node_t *expr;
 } assignment_t;
@@ -71,12 +71,12 @@ typedef struct block_t {
 } block_t;
 
 typedef struct {
-  ast_node_t *identifier;
+  ast_node_t *symbol;
   e_ika_type type;
 } decl_t;
 
 typedef struct {
-  ast_node_t *identifier;
+  ast_node_t *symbol;
   dynarray parameters;
   symbol_table_t *parameters_symbol_table;
   e_ika_type return_type;
@@ -84,7 +84,7 @@ typedef struct {
 } fn_t;
 
 typedef struct {
-  ast_node_t *identifer;
+  ast_node_t *symbol;
   dynarray exprs;
 } fn_call_t;
 

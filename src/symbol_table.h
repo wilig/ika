@@ -23,12 +23,12 @@ typedef struct {
 // - the location in the source it's defined
 typedef struct {
   bool constant;
-  str *identifer;
+  char *symbol;
   e_ika_type type;
-  uint32_t bytes;     // NOTE: bits might be better in the long run
-  uint32_t dimension; // How many of type
+  u32 bytes;     // NOTE: bits might be better in the long run
+  u32 dimension; // How many of type
   void *node_address;
-  uint32_t line;
+  u32 line;
 } symbol_table_entry_t;
 
 typedef struct symbol_table_t {
@@ -40,12 +40,12 @@ typedef struct symbol_table_t {
 symbol_table_t *make_symbol_table(allocator_t allocator,
                                   symbol_table_t *parent);
 
-IKA_ERROR symbol_table_insert(symbol_table_t *, str name, e_ika_type type,
+IKA_ERROR symbol_table_insert(symbol_table_t *, char *name, e_ika_type type,
                               bool constant, void *node, uint32_t line);
 
-symbol_table_entry_t *symbol_table_lookup(symbol_table_t *, str);
+symbol_table_entry_t *symbol_table_lookup(symbol_table_t *, char *);
 
-void symbol_table_add_reference(symbol_table_t *, str, uint32_t line,
+void symbol_table_add_reference(symbol_table_t *, char *, uint32_t line,
                                 uint32_t column);
 
 void symbol_table_dump(symbol_table_t *);

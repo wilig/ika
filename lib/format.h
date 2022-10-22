@@ -1,6 +1,5 @@
 #pragma once
 
 #include "allocator.h"
-#include "str.h"
 
-str format(allocator_t, const char *, ...);
+char *format(allocator_t, const char *, ...);
