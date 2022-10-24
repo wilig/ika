@@ -9,12 +9,12 @@
 #include "defines.h"
 #include "types.h"
 
-typedef struct {
+typedef struct token_position_t {
   u32 line;
   u32 column;
 } token_position_t;
 
-typedef struct {
+typedef struct token_t {
   token_position_t position;
   e_ika_type type;
   const char *value;

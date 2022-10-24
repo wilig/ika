@@ -40,8 +40,8 @@ typedef struct symbol_table_t {
 symbol_table_t *make_symbol_table(allocator_t allocator,
                                   symbol_table_t *parent);
 
-IKA_ERROR symbol_table_insert(symbol_table_t *, char *name, e_ika_type type,
-                              bool constant, void *node, uint32_t line);
+IKA_STATUS symbol_table_insert(symbol_table_t *, char *name, e_ika_type type,
+                               bool constant, void *node, uint32_t line);
 
 symbol_table_entry_t *symbol_table_lookup(symbol_table_t *, char *);
 

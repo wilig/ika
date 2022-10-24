@@ -1,10 +1,11 @@
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../lib/assert.h"
-//#include "../lib/log.h"
+#include "../lib/format.h"
 
 #include "defines.h"
 #include "errors.h"
@@ -24,6 +25,18 @@ static token_position_t tokenizer_calculate_position(char *source, u32 offset) {
     }
   }
   return (token_position_t){.column = (u32)column, .line = (u32)line};
+}
+
+static void tokenization_error(tokenizer_input_stream_t *s, const char *fmt,
+                               ...) {
+  token_position_t pos = tokenizer_calculate_position(s->source, s->pos);
+  syntax_error_t err = {
+      .line = pos.line, .column = pos.column, .pass = TOKENIZE};
+  va_list args;
+  va_start(args, fmt);
+  err.message = format(s->allocator, fmt, args);
+  dynarray_append(s->errors, &err);
+  va_end(args);
 }
 
 static int is_newline(tokenizer_input_stream_t *s) {
@@ -87,6 +100,7 @@ static bool is_numeric(tokenizer_input_stream_t *s) {
 
 static bool is_valid_string_escape_character(tokenizer_input_stream_t *s) {
   char c = current_char(s);
+  // If you update this list, be sure to update the error message
   return c == '\\' || c == 'n' || c == 't' || c == '"' ? true : false;
 }
 
@@ -116,30 +130,25 @@ static token_t tokenize_string(tokenizer_input_stream_t *s) {
   while ((!is_string_marker(s) || escaped) && s->pos <= s->source_length) {
     // Handle invalid escape codes
     if (escaped && !is_valid_string_escape_character(s)) { // Handle error
-      token_position_t pos = tokenizer_calculate_position(s->source, s->pos);
-      syntax_error_t err = {.line = pos.line,
-                            .column = pos.column,
-                            .pass = tokenizing_pass,
-                            .message = "Invalid string escape sequence.",
-                            .hint = "Valid sequences are \\\\ \\n \\t "
-                                    "\\\"."};
-      dynarray_append(s->errors, &err);
+      tokenization_error(
+          s,
+          "Invalid string escape character: '\\%c'\n\n"
+          "Only certain characters are allowed to be escaped within a "
+          "string.\n\n "
+          "The '\\' character has special meaning within a string, it "
+          "causes the next character to be treated differently.  If you "
+          "were just trying to use a '\\', simply use two '\\\\'.  Other "
+          "supported escape characters are '\\n', '\\t', and '\\\".",
+          current_char(s));
     } else {
       escaped = (!escaped && current_char(s) == '\\');
     }
     s->pos += 1;
   }
   if (!is_string_marker(s)) {
-    token_position_t pos = tokenizer_calculate_position(s->source, s->pos);
-    syntax_error_t err = {
-        .line = pos.line,
-        .column = pos.column,
-        .pass = tokenizing_pass,
-        .message = "Reached the end of the file before finding a string "
-                   "termination character.",
-        .hint =
-            "String should be terminated with a \" at the end of the string"};
-    dynarray_append(s->errors, &err);
+    tokenization_error(
+        s, "Unterminated string error.\n\nYou must finish a string by used a "
+           "closing \" at the end.  Example:  \"Hello world\"");
   }
   return (token_t){
       .type = ika_str_literal,
@@ -170,16 +179,8 @@ static token_t tokenize_comment(tokenizer_input_stream_t *s) {
   }
   // Check for unterminated comment.  Depth > 0 means we reached EOF.
   if (comment_depth != 0) {
-    token_position_t pos = tokenizer_calculate_position(s->source, s->pos);
-    syntax_error_t err = {
-        .line = pos.line,
-        .column = pos.column,
-        .pass = tokenizing_pass,
-        .message = "Reached the end of the file before reaching the end "
-                   "of a comment.",
-        .hint =
-            "Multi-line comments should be terminated with a */ at the end."};
-    dynarray_append(s->errors, &err);
+    tokenization_error(s, "Untermined comment.\n\nComments must be terminated "
+                          "before the end of the file.");
   }
   if (multiline) {
     s->pos += 1;
@@ -291,7 +292,6 @@ dynarray *tokenizer_scan(allocator_t allocator, char *source, u64 source_length,
     }
   }
 
-  printf("Done tokenizing, found %li tokens.\n", tokens->count);
   return tokens;
 }
 

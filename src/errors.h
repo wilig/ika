@@ -7,22 +7,16 @@
 
 typedef enum {
   SUCCESS,
-  VARIABLE_REDEFINITION_ERROR,
-} IKA_ERROR;
+  ERROR_VARIABLE_REDEFINITION,
+} IKA_STATUS;
 
-typedef enum {
-  tokenizing_pass,
-  parsing_pass,
-  typing_pass,
-  ir_pass
-} compiler_pass;
+typedef enum { TOKENIZE, PARSING, TYPING, IR_GEN } IKA_PASS;
 
 typedef struct {
-  compiler_pass pass;
+  IKA_PASS pass;
   uint32_t line;
   uint32_t column;
   char *message;
-  char *hint;
 } syntax_error_t;
 
 void errors_display_parser_errors(dynarray *errors, char *source);

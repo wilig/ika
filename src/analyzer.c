@@ -1,5 +1,6 @@
 #include <assert.h>
 
+#include "../lib/assert.h"
 #include "../lib/format.h"
 
 #include "analyzer.h"
@@ -9,15 +10,14 @@
 #include "symbol_table.h"
 #include "types.h"
 
-static void analyzer_report_syntax_error(analyzer_context_t ctx,
-                                         ast_node_t *node, char *message,
-                                         char *hint) {
-  syntax_error_t err = {.column = node->column,
-                        .line = node->line,
-                        .pass = typing_pass,
-                        .message = message,
-                        .hint = hint};
+static void analyzer_error(analyzer_context_t ctx, u32 line, u32 column,
+                           const char *fmt, ...) {
+  syntax_error_t err = {.line = line, .column = column, .pass = TYPING};
+  va_list args;
+  va_start(args, fmt);
+  err.message = format(ctx.allocator, fmt, args);
   dynarray_append(ctx.errors, &err);
+  va_end(args);
 }
 
 static e_ika_type determine_type_for_expression(analyzer_context_t ctx,
@@ -38,10 +38,10 @@ static e_ika_type determine_type_for_expression(analyzer_context_t ctx,
     if (entry) {
       return entry->type;
     } else {
-      analyzer_report_syntax_error(ctx, expression, "Undefined identifier",
-                                   format(ctx.allocator,
-                                          "'%s' is undefined within this scope",
-                                          expression->symbol.value));
+      analyzer_error(
+          ctx, expression->line, expression->column,
+          "Undefined identifier '%s'.\n\nHint:  Perhaps you meant #todo\n\n",
+          expression->symbol.value);
     }
     return ika_unknown;
   }
@@ -65,13 +65,12 @@ static e_ika_type determine_type_for_expression(analyzer_context_t ctx,
       // Punt till later, as it's most likely an error earlier in the analysis
       return ika_unknown;
     } else {
-      analyzer_report_syntax_error(
-          ctx, expression->expr.right, "Unsupported operation",
-          format(ctx.allocator,
-                 "The %s operator is not supported between %s and %s.",
-                 ika_base_type_table[expression->expr.op].txt,
-                 ika_base_type_table[ltype].label,
-                 ika_base_type_table[rtype].label));
+      analyzer_error(
+          ctx, expression->expr.right->line, expression->expr.right->column,
+          "Unsupported operation.\n\nThe %s operator is not supported between "
+          "%s and %s.\n\n",
+          ika_base_type_table[expression->expr.op].txt,
+          ika_base_type_table[ltype].label, ika_base_type_table[rtype].label);
       return ika_unknown;
     }
   }
@@ -83,8 +82,7 @@ static e_ika_type determine_type_for_expression(analyzer_context_t ctx,
     return function->fn.return_type;
   }
   default: {
-    printf("Unexpected expression type of %d\n", expression->type);
-    assert(false);
+    ASSERT_MSG((false), "Unexpected expression type of %d\n")
   }
   }
 }
@@ -94,13 +92,12 @@ static void analyze_assignment(analyzer_context_t ctx, ast_node_t *node) {
   if (node->assignment.type == ika_untyped_assign) {
     node->assignment.type = type;
   } else if (node->assignment.type != type) {
-    analyzer_report_syntax_error(
-        ctx, node->assignment.expr, "Type mismatch",
-        format(ctx.allocator,
-               "Cannot assign type %s to type %s, these types are not "
-               "convertable.",
-               ika_base_type_table[type].label,
-               ika_base_type_table[node->assignment.type].label));
+    analyzer_error(ctx, node->assignment.expr->line,
+                   node->assignment.expr->column,
+                   "Type mismatch.\n\nCannot assign type %s to type %s, these "
+                   "types are not convertable.",
+                   ika_base_type_table[type].label,
+                   ika_base_type_table[node->assignment.type].label);
   }
 }
 
@@ -123,20 +120,19 @@ static void analyzer_resolve_function_return(analyzer_context_t ctx,
     e_ika_type actual_return_type = determine_type_for_expression(
         ctx, node->fn.block->block.return_statement->returns.expr);
     if (expected_return_type != actual_return_type) {
-      analyzer_report_syntax_error(
-          ctx, node->fn.block->block.return_statement->returns.expr,
-          "Unexpected type",
-          format(ctx.allocator,
-                 "The function claims to return %s but this expression "
-                 "is of type %s.",
-                 ika_base_type_table[expected_return_type].label,
-                 ika_base_type_table[actual_return_type].label));
+      analyzer_error(
+          ctx, node->fn.block->block.return_statement->returns.expr->line,
+          node->fn.block->block.return_statement->returns.expr->column,
+          "Unexpected type.\n\nThe function claims to return %s but "
+          "this expression is of type %s.",
+          ika_base_type_table[expected_return_type].label,
+          ika_base_type_table[actual_return_type].label);
     }
   } else if (node->fn.return_type != ika_void) {
     ast_node_t *last_node = dynarray_get(&node->fn.block->block.nodes,
                                          node->fn.block->block.nodes.count - 1);
-    analyzer_report_syntax_error(ctx, last_node, "Missing return statement",
-                                 "");
+    analyzer_error(ctx, last_node->line, last_node->column,
+                   "Missing return statement");
   }
   // TODO: Eventually need to visit every child block recursively and check
   // for a return statement.  All paths must have a return.
@@ -154,12 +150,11 @@ static void analyze_fn_call(analyzer_context_t ctx, fn_call_t *fn_call) {
     e_ika_type expr_type = determine_type_for_expression(ctx, expr);
     if (param->decl.type != expr_type) {
       char *param_name = param->decl.symbol->symbol.value;
-      analyzer_report_syntax_error(
-          ctx, expr, "Unexpected function argument type",
-          format(ctx.allocator,
-                 "Parameter '%s' is of type %s, but a %s was given.",
-                 param_name, ika_base_type_table[param->decl.type].label,
-                 ika_base_type_table[expr_type].label));
+      analyzer_error(ctx, expr->line, expr->column,
+                     "Unexpected function argument type.\n\nParameter '%s' is "
+                     "of type %s, but a %s was given.",
+                     param_name, ika_base_type_table[param->decl.type].label,
+                     ika_base_type_table[expr_type].label);
     }
   }
 }
@@ -198,9 +193,10 @@ static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
           analyzer_resolve_types(ctx, child->if_statement.else_block);
         }
       } else {
-        analyzer_report_syntax_error(
-            ctx, child->if_statement.expr, "Must be boolean",
-            "If statement expressions must evaluate to a boolean.");
+        analyzer_error(ctx, child->if_statement.expr->line,
+                       child->if_statement.expr->column,
+                       "If expressions must be boolean.\n\nIf statement "
+                       "expressions must evaluate to a boolean.\n\n");
       }
       break;
     }

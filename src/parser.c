@@ -12,6 +12,15 @@
 #include "tokenize.h"
 #include "types.h"
 
+static void parse_error(parser_state_t *state, u32 line, u32 column,
+                        const char *fmt, ...) {
+  syntax_error_t err = {.line = line, .column = column, .pass = PARSING};
+  va_list args;
+  va_start(args, fmt);
+  err.message = format(state->allocator, fmt, args);
+  dynarray_append(state->errors, &err);
+}
+
 ast_node_t *parse_node(parser_state_t *);
 ast_node_t *parse_expr(parser_state_t *);
 
@@ -50,13 +59,12 @@ static void add_to_symbol_table(parser_state_t *state, char *symbol,
                                 ast_node_t *node) {
   if (symbol_table_insert(state->current_scope, symbol, type, constant, node,
                           token->position.line) != SUCCESS) {
-    syntax_error_t err = {
-        .column = token->position.column,
-        .line = token->position.line,
-        .pass = parsing_pass,
-        .message = "Redefinition of existing identifier",
-        .hint = "Try using a different name or removing the duplicate."};
-    dynarray_append(state->errors, &err);
+    // NOTE: Only one possible error for now
+    // TODO: Use levenstein distance to look for typos?
+    parse_error(
+        state, token->position.line, token->position.column,
+        "Undefined identifier '%s'.\n\nHint:  Perhaps you meant ...\n\n",
+        symbol);
   }
 }
 
@@ -342,15 +350,11 @@ static ast_node_t *parse_assignment(parser_state_t *state) {
           type = var->type;
         } else {
           // Trying to assign to an undefined symbol is an error
-          syntax_error_t err = {.column = symbol->column,
-                                .line = symbol->line,
-                                .pass = parsing_pass,
-                                .message = "Undefined variable name",
-                                .hint =
-                                    format(state->allocator,
-                                           "'%s' is not defined in this scope.",
-                                           symbol->symbol.value)};
-          dynarray_append(state->errors, &err);
+          // TODO:  Use levenstein distance to look for typos
+          parse_error(
+              state, symbol->line, symbol->column,
+              "Undefined identifier '%s'.\n\nHint:  Perhaps you meant ...\n\n",
+              symbol->symbol.value);
           type = ika_unknown;
         }
         // Untyped assign aka x := 10
@@ -454,13 +458,10 @@ static ast_node_t *parse_block(parser_state_t *state) {
       } else if (!node->block.return_statement) {
         dynarray_append(&node->block.nodes, child_node);
       } else {
-        syntax_error_t err = {
-            .column = child_node->starting_token->position.column,
-            .line = child_node->starting_token->position.line,
-            .pass = parsing_pass,
-            .message = "Statement after return",
-            .hint = "Statements after a return have no effect"};
-        dynarray_append(state->errors, &err);
+        parse_error(state, child_node->starting_token->position.line,
+                    child_node->starting_token->position.column,
+                    "Statement(s) after return.\n\nStatements after a return "
+                    "have no effect\n\n");
       }
     }
     advance_token_pointer(state); // Move past closing brace
@@ -512,20 +513,10 @@ static ast_node_t *parse_fn(parser_state_t *state) {
         }
       } else {
         token_t *err_token = get_token(state);
-        syntax_error_t err = {
-            .column = err_token->position.column,
-            .line = err_token->position.line,
-            .pass = parsing_pass,
-            .message = "Missing opening parenthesis",
-            .hint =
-                "Functions require a parenthesised parameter list even if it's empty.\n \
-              \n\n \
-              Examples:\n \
-              \tfn myfunc(): int \n\
-              \tfn myfunc(x: int): int\n\
-              \tThe return type is optional, and if omitted defaults to void\n \
-              \tfn myfunc()\n"};
-        dynarray_append(state->errors, &err);
+        parse_error(
+            state, err_token->position.line, err_token->position.column,
+            "Missing opening parenthesis for parameter list.\n\nFunctions "
+            "require a parenthesized parameter list even if it's empty.\n\n");
         return NULL;
       }
       ast_node_t *block = parse_block(state);
@@ -578,17 +569,12 @@ static ast_node_t *parse_if_statement(parser_state_t *state) {
           if (else_block) {
             node->if_statement.else_block = else_block;
           } else {
-            token_t *err_token = get_token(state);
-            syntax_error_t err = {
-                .column = err_token->position.column,
-                .line = err_token->position.line,
-                .pass = parsing_pass,
-                .message = "Missing block for else clause",
-                .hint = "Else clauses require blocks of code to be executed \
-                       if the else branch is choosen. \n\n \
-                       Example:\n\n \
-                       if (false) { x := 100} else { x:= 200 }\n"};
-            dynarray_append(state->errors, &err);
+            token_position_t pos = get_token(state)->position;
+            parse_error(
+                state, pos.line, pos.column,
+                "Missing block for else clause.\n\nElse clauses require blocks "
+                "of code to be executed if the else branch is choosen. \n\n "
+                "Example:\n\n if (false) { x := 100} else { x:= 200 }\n");
           }
         }
         return node;
@@ -648,12 +634,8 @@ ast_node_t *parse_node(parser_state_t *state) {
   if (node)
     return node;
   token_t *err_token = get_token(state);
-  syntax_error_t err = {.column = err_token->position.column,
-                        .line = err_token->position.line,
-                        .pass = parsing_pass,
-                        .message = "Unexpected token",
-                        .hint = ""};
-  dynarray_append(state->errors, &err);
+  parse_error(state, err_token->position.line, err_token->position.column,
+              "Unexpected token '%s'", err_token->value);
   // Skip the problematic token
   advance_token_pointer(state);
   return NULL;

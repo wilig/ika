@@ -1,8 +1,13 @@
-#include "errors.h"
+#include "../lib/assert.h"
+#include "../lib/format.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "ast.h"
+#include "errors.h"
+#include "tokenize.h"
 
 static void errors_print_at_column(int c, u32 column) {
   for (u32 i = 0; i <= column - 1; i++)
@@ -51,10 +56,8 @@ static void errors_display_error(syntax_error_t *err, char *source) {
   errors_display_context(err->line, source);
   errors_print_pointer(err->column, 1);
   printf("Stage: %d\n", err->pass);
-  printf("Syntax Error: %s on line %d\n\n", err->message, err->line);
-  if (err->hint) {
-    printf("%s\n\n", err->hint);
-  }
+  printf("Syntax Error: line %d, column %d\n\n", err->line, err->column);
+  printf("%s\n", err->message);
 }
 
 void errors_display_parser_errors(dynarray *errors, char *source) {

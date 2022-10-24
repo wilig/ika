@@ -5,12 +5,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-char *format(allocator_t allocator, const char *fmt, ...) {
-  va_list orig, new;
-  va_start(orig, fmt);
-  va_copy(new, orig);
-  uint32_t length = (uint32_t)vsnprintf(NULL, 0, fmt, orig);
+char *format(allocator_t allocator, const char *fmt, va_list args) {
+  va_list copy;
+  va_copy(copy, args);
+  uint32_t length = (uint32_t)vsnprintf(NULL, 0, fmt, copy);
   char *buffer = allocator_alloc_or_exit(allocator, length);
-  vsnprintf(buffer, length, fmt, new);
+  vsnprintf(buffer, length, fmt, args);
   return buffer;
 }

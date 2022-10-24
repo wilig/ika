@@ -48,9 +48,9 @@ symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, char *key) {
   return NULL;
 }
 
-IKA_ERROR symbol_table_insert(symbol_table_t *t, char *name, e_ika_type type,
-                              bool constant, void *node_address,
-                              uint32_t line) {
+IKA_STATUS symbol_table_insert(symbol_table_t *t, char *name, e_ika_type type,
+                               bool constant, void *node_address,
+                               uint32_t line) {
   symbol_table_entry_t *entry =
       allocator_alloc_or_exit(t->allocator, sizeof(symbol_table_entry_t));
   str *entry_key = allocator_alloc_or_exit(t->allocator, sizeof(str));
@@ -65,7 +65,7 @@ IKA_ERROR symbol_table_insert(symbol_table_t *t, char *name, e_ika_type type,
           t->table,
           (str_entry_t){.key = *entry_key, .valid = true, .value = entry})) {
     // The identifier is already in the symbol table.  That's an error.
-    return VARIABLE_REDEFINITION_ERROR;
+    return ERROR_VARIABLE_REDEFINITION;
   }
   return SUCCESS;
 }

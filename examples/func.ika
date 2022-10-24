@@ -7,3 +7,4 @@ fn mult(x: int, y: int): int {
 mult(10, 100)
 
 i := 10 * mult(5, 6)
+
