@@ -3,10 +3,11 @@
 #include <stdio.h>
 
 #include "../lib/allocator.h"
-#include "../lib/dynarray.h"
+#include "../lib/darray.h"
 #include "../lib/str.h"
 
 #include "defines.h"
+#include "errors.h"
 #include "types.h"
 
 typedef struct token_position_t {
@@ -25,12 +26,14 @@ typedef struct {
   char *source;
   u64 source_length;
   allocator_t allocator;
-  dynarray *errors;
+  da_syntax_errors *errors;
 } tokenizer_input_stream_t;
 
-// An array of tokens
-dynarray *tokenizer_scan(allocator_t allocator, char *source, u64 source_length,
-                         dynarray *errors);
+// Alias to be explicit that it's a dynamic array
+typedef token_t da_tokens;
+
+da_tokens *tokenizer_scan(allocator_t allocator, char *source,
+                          u64 source_length, da_syntax_errors *errors);
 
 // Debugging stuff
 void tokenizer_print_token(FILE *, token_t *);

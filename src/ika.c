@@ -1,21 +1,10 @@
-#include <assert.h>
 #include <locale.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
 
 #include "../lib/allocator.h"
-#include "../lib/dynarray.h"
-#include "../lib/hashtbl.h"
 #include "../lib/log.h"
 
-#include "analyzer.h"
 #include "compiler.h"
-#include "errors.h"
 #include "ika.h"
-#include "parser.h"
-#include "print.h"
-#include "tokenize.h"
 
 int main(int argc, char **argv) {
   // Enable UTF-8 output for "fancy" line drawing..

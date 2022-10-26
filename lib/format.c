@@ -1,6 +1,5 @@
 #include "format.h"
 #include "allocator.h"
-#include "dynarray.h"
 #include "str.h"
 #include <stdarg.h>
 #include <stdio.h>

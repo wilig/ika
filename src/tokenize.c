@@ -35,7 +35,7 @@ static void tokenization_error(tokenizer_input_stream_t *s, const char *fmt,
   va_list args;
   va_start(args, fmt);
   err.message = format(s->allocator, fmt, args);
-  dynarray_append(s->errors, &err);
+  darray_append(s->errors, err);
   va_end(args);
 }
 
@@ -262,9 +262,9 @@ static token_t tokenize_numeric(tokenizer_input_stream_t *s) {
   };
 }
 
-dynarray *tokenizer_scan(allocator_t allocator, char *source, u64 source_length,
-                         dynarray *errors) {
-  dynarray *tokens = dynarray_init(allocator, sizeof(token_t));
+da_tokens *tokenizer_scan(allocator_t allocator, char *source,
+                          u64 source_length, da_syntax_errors *errors) {
+  da_tokens *tokens = darray_init(allocator, token_t);
   tokenizer_input_stream_t s = {.allocator = allocator,
                                 .source = source,
                                 .source_length = source_length,
@@ -274,19 +274,19 @@ dynarray *tokenizer_scan(allocator_t allocator, char *source, u64 source_length,
   while (s.pos < s.source_length) {
     if (is_comment(&s)) {
       token_t token = tokenize_comment(&s);
-      dynarray_append(tokens, &token);
+      darray_append(tokens, token);
     } else if (is_operator(&s)) {
       token_t token = tokenize_operator(&s);
-      dynarray_append(tokens, &token);
+      darray_append(tokens, token);
     } else if (is_alpha(current_char(&s))) {
       token_t token = tokenize_identifier(&s);
-      dynarray_append(tokens, &token);
+      darray_append(tokens, token);
     } else if (is_string_marker(&s)) {
       token_t token = tokenize_string(&s);
-      dynarray_append(tokens, &token);
+      darray_append(tokens, token);
     } else if (is_digit_marker(&s)) {
       token_t token = tokenize_numeric(&s);
-      dynarray_append(tokens, &token);
+      darray_append(tokens, token);
     } else {
       s.pos += 1;
     }

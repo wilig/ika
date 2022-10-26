@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
+#include "../lib/darray.h"
 #include "../lib/log.h"
 
 #include "analyzer.h"
@@ -61,38 +62,37 @@ compilation_unit_t *new_compilation_unit(allocator_t allocator,
   unit->buffer = buffer;
   unit->buffer_length = read;
   unit->current_token_idx = 0;
-  unit->errors = dynarray_init(allocator, sizeof(syntax_error_t));
-
+  unit->errors = darray_init(allocator, syntax_error_t);
   return unit;
 }
 
 void compile(compilation_unit_t *unit) {
   timings timer = {0};
   u64 start = time_in_ms();
-  printf("\n-------------------------------------\nTokenization pass\n ");
-  dynarray *tokens = tokenizer_scan(unit->allocator, unit->buffer,
-                                    unit->buffer_length, unit->errors);
+  printf("\n-------------------------------------\nTokenization pass\n");
+  da_tokens *tokens = tokenizer_scan(unit->allocator, unit->buffer,
+                                     unit->buffer_length, unit->errors);
   timer.tokenization = time_in_ms() - start;
 
   /* Print tokens */
-  for (u64 i = 0; i < tokens->count; i++) {
-    tokenizer_print_token(stdout, dynarray_get(tokens, i));
+  for (u64 i = 0; i < darray_len(tokens); i++) {
+    tokenizer_print_token(stdout, &tokens[i]);
     printf("\n");
   }
 
   start = time_in_ms();
-  printf("\n-------------------------------------\nParser pass\n ");
+  printf("\n-------------------------------------\nParser pass\n");
   ast_node_t *root = parser_parse(unit->allocator, tokens, unit->errors);
   timer.parsing = time_in_ms() - start;
   unit->root = root;
 
   start = time_in_ms();
-  printf("\n-------------------------------------\nAnalyzer pass\n ");
+  printf("\n-------------------------------------\nAnalyzer pass\n");
   analyzer_analyze(unit);
   timer.analyzation = time_in_ms() - start;
-  printf(" %li ms\n", time_in_ms() - start);
+  printf("\nDone.\n");
 
-  if (unit->errors->count > 0) {
+  if (darray_len(unit->errors) > 0) {
     errors_display_parser_errors(unit->errors, unit->buffer);
   } else {
     print_node_as_tree(root, 0);

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "../lib/allocator.h"
-#include "../lib/dynarray.h"
 #include "../lib/str.h"
 
+#include "errors.h"
 #include "parser.h"
 
 typedef struct scope_t {
@@ -22,12 +22,14 @@ typedef struct {
 
   char *buffer;
   u64 buffer_length;
-  dynarray *tokens;
+  // Dynamic array
+  token_t *tokens;
   int current_token_idx;
 
   ast_node_t *root;
 
-  dynarray *errors;
+  // Dynamic array
+  syntax_error_t *errors;
 } compilation_unit_t;
 
 compilation_unit_t *new_compilation_unit(allocator_t, char *);

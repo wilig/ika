@@ -1,8 +1,5 @@
 #pragma once
 
-#include "../lib/dynarray.h"
-#include "../lib/str.h"
-
 #include "defines.h"
 
 typedef enum {
@@ -19,4 +16,7 @@ typedef struct {
   char *message;
 } syntax_error_t;
 
-void errors_display_parser_errors(dynarray *errors, char *source);
+// Alias to be explicit that it's a dynamic array
+typedef syntax_error_t da_syntax_errors;
+
+void errors_display_parser_errors(da_syntax_errors *errors, char *source);

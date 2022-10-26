@@ -1,1 +1,4 @@
--Weverything
+-g 
+-Wall 
+-Werror 
+-pedantic

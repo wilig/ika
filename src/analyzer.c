@@ -16,7 +16,7 @@ static void analyzer_error(analyzer_context_t ctx, u32 line, u32 column,
   va_list args;
   va_start(args, fmt);
   err.message = format(ctx.allocator, fmt, args);
-  dynarray_append(ctx.errors, &err);
+  darray_append(ctx.errors, err);
   va_end(args);
 }
 
@@ -87,17 +87,38 @@ static e_ika_type determine_type_for_expression(analyzer_context_t ctx,
   }
 }
 
+static void analyze_decl(analyzer_context_t ctx, ast_node_t *node) {
+  if (node->decl.expr) {
+    e_ika_type type = determine_type_for_expression(ctx, node->decl.expr);
+    if (node->decl.type == ika_unknown) {
+      node->decl.type = type;
+    } else if (node->decl.type != type) {
+      analyzer_error(
+          ctx, node->decl.expr->line, node->decl.expr->column,
+          "Type mismatch.\n\nCannot assign type %s to type %s, these "
+          "types are not convertable.",
+          ika_base_type_table[type].label,
+          ika_base_type_table[node->decl.type].label);
+    }
+  }
+}
+
 static void analyze_assignment(analyzer_context_t ctx, ast_node_t *node) {
-  e_ika_type type = determine_type_for_expression(ctx, node->assignment.expr);
-  if (node->assignment.type == ika_untyped_assign) {
-    node->assignment.type = type;
-  } else if (node->assignment.type != type) {
-    analyzer_error(ctx, node->assignment.expr->line,
-                   node->assignment.expr->column,
-                   "Type mismatch.\n\nCannot assign type %s to type %s, these "
-                   "types are not convertable.",
-                   ika_base_type_table[type].label,
-                   ika_base_type_table[node->assignment.type].label);
+  symbol_table_entry_t *entry = symbol_table_lookup(
+      ctx.parent->block.symbol_table, node->assignment.symbol->symbol.value);
+  if (entry) {
+    e_ika_type expr_type =
+        determine_type_for_expression(ctx, node->assignment.expr);
+    if (entry->type != expr_type) {
+      analyzer_error(
+          ctx, node->decl.expr->line, node->decl.expr->column,
+          "Type mismatch.\n\nCannot assign type %s to type %s, these "
+          "types are not convertable.",
+          ika_base_type_table[expr_type].label,
+          ika_base_type_table[entry->type].label);
+    }
+  } else {
+    analyzer_error(ctx, node->line, node->column, "Undefined identifier");
   }
 }
 
@@ -129,8 +150,9 @@ static void analyzer_resolve_function_return(analyzer_context_t ctx,
           ika_base_type_table[actual_return_type].label);
     }
   } else if (node->fn.return_type != ika_void) {
-    ast_node_t *last_node = dynarray_get(&node->fn.block->block.nodes,
-                                         node->fn.block->block.nodes.count - 1);
+    ast_node_t *last_node =
+        &node->fn.block->block
+             .nodes[darray_len(node->fn.block->block.nodes) - 1];
     analyzer_error(ctx, last_node->line, last_node->column,
                    "Missing return statement");
   }
@@ -142,11 +164,11 @@ static void analyze_fn_call(analyzer_context_t ctx, fn_call_t *fn_call) {
   symbol_table_entry_t *entry = symbol_table_lookup(
       ctx.parent->block.symbol_table, fn_call->symbol->symbol.value);
   ast_node_t *function = (ast_node_t *)entry->node_address;
-  dynarray params = function->fn.parameters;
-  dynarray exprs = fn_call->exprs;
-  for (uint32_t i = 0; i < params.count; i++) {
-    ast_node_t *param = dynarray_get(&params, i);
-    ast_node_t *expr = dynarray_get(&exprs, i);
+  da_nodes *params = function->fn.parameters;
+  da_nodes *exprs = fn_call->exprs;
+  for (uint32_t i = 0; i < darray_len(params); i++) {
+    ast_node_t *param = &params[i];
+    ast_node_t *expr = &exprs[i];
     e_ika_type expr_type = determine_type_for_expression(ctx, expr);
     if (param->decl.type != expr_type) {
       char *param_name = param->decl.symbol->symbol.value;
@@ -163,15 +185,18 @@ static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
   assert(root->type == ast_block);
   symbol_table_t *current_symbol_table = root->block.symbol_table;
   ctx.parent = root;
-  dynarray children = root->block.nodes;
-  for (u64 i = 0; i < children.count; i++) {
-    ast_node_t *child = dynarray_get(&children, i);
+  da_nodes *children = root->block.nodes;
+  for (u64 i = 0; i < darray_len(children); i++) {
+    ast_node_t *child = &children[i];
     switch (child->type) {
+    case ast_decl:
+      analyze_decl(ctx, child);
+      analyze_update_symbol_table(current_symbol_table,
+                                  child->decl.symbol->symbol.value,
+                                  child->decl.type);
+      break;
     case ast_assignment:
       analyze_assignment(ctx, child);
-      analyze_update_symbol_table(current_symbol_table,
-                                  child->assignment.symbol->symbol.value,
-                                  child->assignment.type);
       break;
     case ast_block:
       analyzer_resolve_types(ctx, child);
@@ -209,7 +234,6 @@ static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
     case ast_float_literal:
     case ast_str_literal:
     case ast_int_literal:
-    case ast_decl:
     case ast_expr:
     case ast_term:
     case ast_symbol:

@@ -23,6 +23,8 @@ typedef enum {
 
 typedef struct ast_node_t ast_node_t;
 
+typedef struct ast_node_t da_nodes;
+
 typedef struct {
   union {
     const char *string_value;
@@ -48,9 +50,7 @@ typedef struct {
 } term_t;
 
 typedef struct {
-  bool constant;
   ast_node_t *symbol;
-  e_ika_type type;
   ast_node_t *expr;
 } assignment_t;
 
@@ -65,19 +65,21 @@ typedef struct {
 } return_t;
 
 typedef struct block_t {
-  dynarray nodes; // type: ast_node_t
+  da_nodes *nodes;
   symbol_table_t *symbol_table;
   ast_node_t *return_statement;
 } block_t;
 
 typedef struct {
+  bool constant;
   ast_node_t *symbol;
   e_ika_type type;
+  ast_node_t *expr;
 } decl_t;
 
 typedef struct {
   ast_node_t *symbol;
-  dynarray parameters;
+  da_nodes *parameters;
   symbol_table_t *parameters_symbol_table;
   e_ika_type return_type;
   ast_node_t *block;
@@ -85,7 +87,7 @@ typedef struct {
 
 typedef struct {
   ast_node_t *symbol;
-  dynarray exprs;
+  da_nodes *exprs;
 } fn_call_t;
 
 typedef struct ast_node_t {

@@ -1,4 +1,5 @@
 #include "print.h"
+#include "ast.h"
 #include "parser.h"
 #include "types.h"
 
@@ -31,10 +32,10 @@ void print_node_as_sexpr(ast_node_t *node) {
     printf("%s", node->symbol.value);
   } else if (node->type == ast_fn_call) {
     printf("(%s ", node->fn_call.symbol->symbol.value);
-    for (uint32_t i = 0; i < node->fn_call.exprs.count; i++) {
-      ast_node_t *expr = dynarray_get(&node->fn_call.exprs, i);
+    for (uint32_t i = 0; i < darray_len(node->fn_call.exprs); i++) {
+      ast_node_t *expr = &node->fn_call.exprs[i];
       print_node_as_sexpr(expr);
-      if (i < node->fn_call.exprs.count - 1)
+      if (i < darray_len(node->fn_call.exprs) - 1)
         printf(", ");
     }
     printf(")");
@@ -51,15 +52,16 @@ void print_indent(uint32_t indent_level) {
 
 void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
   switch (node->type) {
-  case ast_assignment: {
+  case ast_decl: {
     print_indent(indent_level);
     printf("%lc ", 0x251c);
-    ast_node_t *identifier = node->assignment.symbol;
-    if (node->assignment.constant)
+    ast_node_t *identifier = node->decl.symbol;
+    if (node->decl.constant)
       printf("[CONST] ");
     printf("%s [%s] = ", identifier->symbol.value,
-           ika_base_type_table[node->assignment.type].label);
-    print_node_as_sexpr(node->assignment.expr);
+           ika_base_type_table[node->decl.type].label);
+    if (node->decl.expr)
+      print_node_as_sexpr(node->decl.expr);
     printf("\n");
     break;
   }
@@ -88,12 +90,12 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     ast_node_t *identifier = node->fn.symbol;
     printf("%s", identifier->symbol.value);
     printf("(");
-    for (int i = 0; i < node->fn.parameters.count; i++) {
-      ast_node_t *decl_node = dynarray_get(&node->fn.parameters, i);
+    for (int i = 0; i < darray_len(node->fn.parameters); i++) {
+      ast_node_t *decl_node = &node->fn.parameters[i];
       identifier = decl_node->decl.symbol;
       printf("%s:%s", identifier->symbol.value,
              ika_base_type_table[decl_node->decl.type].label);
-      if (i < node->fn.parameters.count - 1)
+      if (i < darray_len(node->fn.parameters) - 1)
         printf(", ");
     }
     printf(") returns ");
@@ -102,21 +104,21 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     print_node_as_tree(node->fn.block, indent_level);
     break;
   }
-  case ast_decl: {
+  case ast_assignment: {
     print_indent(indent_level);
     printf("%lc ", 0x251c);
-    ast_node_t *identifier = node->decl.symbol;
-    printf("%s [%s]", identifier->symbol.value,
-           ika_base_type_table[node->decl.type].label);
+    ast_node_t *identifier = node->assignment.symbol;
+    printf("%s = ", identifier->symbol.value);
+    print_node_as_sexpr(node->assignment.expr);
     printf("\n");
     break;
   }
   case ast_block: {
     print_indent(indent_level);
     printf("%lc%lc%lc\n", 0x2514, 0x2500, 0x2510);
-    u64 nodes = node->block.nodes.count;
-    for (u64 i = 0; i < nodes; i++) {
-      ast_node_t *child = (ast_node_t *)dynarray_get(&node->block.nodes, i);
+    for (u64 i = 0; i < darray_len(node->block.nodes); i++) {
+      da_nodes *head = node->block.nodes;
+      ast_node_t *child = &head[i];
       print_node_as_tree(child, indent_level + 1);
     }
     if (node->block.return_statement) {
@@ -132,10 +134,10 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     printf("%lc ", 0x251c);
     ast_node_t *identifier = node->fn_call.symbol;
     printf("call fn '%s' ", identifier->symbol.value);
-    if (node->fn_call.exprs.count == 0) {
+    if (darray_len(node->fn_call.exprs) == 0) {
       printf("passing no parameters");
     } else {
-      printf("passing (%li) parameters", node->fn_call.exprs.count);
+      printf("passing (%li) parameters", darray_len(node->fn_call.exprs));
     }
     printf("\n");
     break;

@@ -16,23 +16,24 @@
 * NO Remove symbol_t and use char * for identifiers in the ast nodes.
 * DONE Stop using str, and revert to char *  (big update)
 * NO Move errors out to a separate file, and use an enum
-* TODO Use parse_decl in assignment and remove the untyped assign operator
-* TODO Update compilation_unit to store everything related to compilation?
+* DONE Use parse_decl in assignment and remove the untyped assign operator
+* TODO add macros for dynarray
+* TODO Move allocator to be static reference so it doesn't need to be passed around
 * TODO Visit every nested block in a function a prove all exits have required returns
 * TODO Make true/false reserved words as well as values??
-* TODO Rename block to scope??
+* NO Rename block to scope??
 * TODO Use levenstein(sp?) distance to detect symbol typos
 * TODO Add more asserts to switch statements default case
-* TODO add macros for dynarray
 * TODO Command line flags for printing out debug structures (tokens, parse tree, symbol tables, etc)
 * TODO Improve printing of symbol tables, and print the heirarchy
 * TODO Better error messages!
 ** TODO Add end statement token based on newline or semi colon (Useful for error messaging)
 * TODO Add semantic analysis
-** TODO Add type checking
+** DONE Add type checking
 ** TODO prevent assignment to constants
 ** DONE prevent using undeclared identifiers
 * IDEA Define my own IR, and possibly a VM for executing code at compile time
 ** TODO constant folding
 * IDEA Investigate QBE or FASM for backend
+* HOLD Update compilation_unit to store everything related to compilation?
 * HOLD Compile cleanly with all warning flags set

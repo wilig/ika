@@ -10,21 +10,28 @@
 #include "tokenize.h"
 
 static void errors_print_at_column(int c, u32 column) {
-  for (u32 i = 0; i <= column - 1; i++)
+  for (u32 i = 0; i < column; i++)
     printf(" ");
   printf("%lc\n", c);
 }
 
+// TODO: This is a mess.  Fix it.
 static void errors_print_lines(u32 column) {
-  column -= 1;
+  u32 width = column;
   if (column > 0) {
     printf("%lc", 0x250c);
   }
-  while (column > 0) {
-    printf("%lc", 0x2500);
-    column--;
+  if (width > 0) {
+    while (width - 1 > 0) {
+      printf("%lc", 0x2500);
+      width--;
+    }
   }
-  printf("%lc\n", 0x2518);
+  if (column > 0) {
+    printf("%lc\n", 0x2518);
+  } else {
+    printf("%lc\n", 0x2502);
+  }
   printf("%lc\n", 0x2502);
 }
 
@@ -60,10 +67,9 @@ static void errors_display_error(syntax_error_t *err, char *source) {
   printf("%s\n", err->message);
 }
 
-void errors_display_parser_errors(dynarray *errors, char *source) {
-  printf("%li errors during compilation\n", errors->count);
-  for (u32 i = 0; i < errors->count; i++) {
-    syntax_error_t *err = dynarray_get(errors, i);
-    errors_display_error(err, source);
+void errors_display_parser_errors(da_syntax_errors *errors, char *source) {
+  printf("%li errors during compilation\n", darray_len(errors));
+  for (u32 i = 0; i < darray_len(errors); i++) {
+    errors_display_error(&errors[i], source);
   }
 }
