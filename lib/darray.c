@@ -15,11 +15,10 @@
 // and indexing, but provides additional functionality implemented below.
 //
 
-void *i_dynamic_array_init(allocator_t allocator, u32 element_size) {
+void *i_dynamic_array_init(u32 element_size) {
   u64 total_size = sizeof(dynamic_array_t) +
                    (element_size * DYNAMIC_ARRAY_DEFAULT_CHUNK_SIZE);
-  dynamic_array_t *stats = allocator_alloc_or_exit(allocator, total_size);
-  stats->allocator = allocator;
+  dynamic_array_t *stats = imust_alloc(total_size);
   stats->element_size = element_size;
   stats->chunk_size = DYNAMIC_ARRAY_DEFAULT_CHUNK_SIZE;
   stats->capacity = DYNAMIC_ARRAY_DEFAULT_CHUNK_SIZE;
@@ -36,21 +35,16 @@ dynamic_array_t *i_dynamic_array_info(void *array) {
 // Frees all the memory associated with the array.
 b8 i_dynamic_array_deinit(void *array) {
   dynamic_array_t *stats = i_dynamic_array_info(array);
-  allocator_free(stats->allocator, stats);
-  return true;
+  ifree(stats);
+  return TRUE;
 }
 
 // Adds a copy of the element parameter to the end of the array
 void *i_dynamic_array_append(void *array, void *element) {
-  printf("array pointer: %p\n", array);
   dynamic_array_t *stats = i_dynamic_array_info(array);
-  printf("dynamic_array element size: %d\n", stats->element_size);
-  printf("dynamic_array element count: %li\n", stats->count);
   if (stats->count < stats->capacity) {
-    printf("Not growing\n");
     int8_t *storage_location =
         ((int8_t *)array + (stats->element_size * stats->count));
-    printf("storage_location: %p\n", (void *)storage_location);
     memcpy(storage_location, element, stats->element_size);
     stats->count += 1;
     return array;
@@ -63,8 +57,7 @@ void *i_dynamic_array_append(void *array, void *element) {
         ((stats->capacity + stats->chunk_size) * stats->element_size);
     u64 bytes_to_copy = stats->capacity * stats->element_size;
     void *previous_storage = array;
-    int8_t *new_loc =
-        allocator_alloc_or_exit(stats->allocator, bytes_to_allocate);
+    int8_t *new_loc = imust_alloc(bytes_to_allocate);
     // Update the stats, before we copy them over.
     stats->capacity += stats->chunk_size;
     // Copy stats header
@@ -93,9 +86,9 @@ b8 i_dynamic_array_put(void *array, uint64_t slot, void *element) {
   if (slot < stats->count) {
     memcpy((int8_t *)array + (stats->element_size * slot), element,
            stats->element_size);
-    return true;
+    return TRUE;
   }
-  return false;
+  return FALSE;
 }
 
 // Synonym for append
@@ -111,5 +104,5 @@ b8 i_dynamic_array_pop(void *array, void *out_element) {
          (uint8_t *)array + (stats->element_size * (stats->count - 1)),
          stats->element_size);
   stats->count -= 1;
-  return true;
+  return TRUE;
 }

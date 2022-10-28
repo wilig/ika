@@ -26,43 +26,39 @@ static u64 time_in_ms() {
   return ((u64)now.tv_sec) * 1000 + ((u64)now.tv_nsec) / 1000000;
 }
 
-compilation_unit_t *new_compilation_unit(allocator_t allocator,
-                                         char *filename) {
+compilation_unit_t *new_compilation_unit(char *filename) {
   struct stat info;
   if (stat(filename, &info) < 0) {
     perror("Failed to open file: ");
     exit(-2);
   }
   if (info.st_size > 100000) {
-    log_error(
-        "Source file too large.  Let's keep it simple for the time being.");
+    ERROR("Source file too large.  Let's keep it simple for the time being.");
     exit(-3);
   }
   // Allocate all the memory for loading the file, add a byte to the end
   // for the trailing zero.
-  char *buffer = allocator_alloc_or_exit(allocator, (u64)info.st_size + 1);
+  char *buffer = imust_alloc((u64)info.st_size + 1);
   FILE *fh = fopen(filename, "r");
   if (fh == NULL) {
     perror("Failed to open file: ");
     exit(-1);
   }
 
-  log_info("Just about to read file into memory\n");
+  INFO("Just about to read file into memory\n");
   // Read in the whole file
   u64 read = fread(buffer, sizeof(uint8_t), (u32)info.st_size, fh);
   if (read != (u64)info.st_size) {
-    log_error("Failed to read complete file, expected {l} bytes, read {l} "
-              "bytes.\nBailing out.\n",
-              info.st_size, read);
+    ERROR("Failed to read complete file, expected %li bytes, read %li "
+          "bytes.\nBailing out.\n",
+          info.st_size, read);
   }
 
-  compilation_unit_t *unit =
-      allocator_alloc_or_exit(allocator, sizeof(compilation_unit_t));
-  unit->allocator = allocator;
+  compilation_unit_t *unit = imust_alloc(sizeof(compilation_unit_t));
   unit->buffer = buffer;
   unit->buffer_length = read;
   unit->current_token_idx = 0;
-  unit->errors = darray_init(allocator, syntax_error_t);
+  unit->errors = darray_init(syntax_error_t);
   return unit;
 }
 
@@ -70,8 +66,8 @@ void compile(compilation_unit_t *unit) {
   timings timer = {0};
   u64 start = time_in_ms();
   printf("\n-------------------------------------\nTokenization pass\n");
-  da_tokens *tokens = tokenizer_scan(unit->allocator, unit->buffer,
-                                     unit->buffer_length, unit->errors);
+  da_tokens *tokens =
+      tokenizer_scan(unit->buffer, unit->buffer_length, unit->errors);
   timer.tokenization = time_in_ms() - start;
 
   /* Print tokens */
@@ -82,12 +78,12 @@ void compile(compilation_unit_t *unit) {
 
   start = time_in_ms();
   printf("\n-------------------------------------\nParser pass\n");
-  ast_node_t *root = parser_parse(unit->allocator, tokens, unit->errors);
+  ast_node_t *root = parser_parse(tokens, unit->errors);
   timer.parsing = time_in_ms() - start;
   unit->root = root;
 
   start = time_in_ms();
-  printf("\n-------------------------------------\nAnalyzer pass\n");
+  printf("\n-------------------------------------\nTyping pass\n");
   analyzer_analyze(unit);
   timer.analyzation = time_in_ms() - start;
   printf("\nDone.\n");

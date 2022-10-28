@@ -17,7 +17,7 @@ static void parse_error(parser_state_t *state, u32 line, u32 column,
   syntax_error_t err = {.line = line, .column = column, .pass = PARSING};
   va_list args;
   va_start(args, fmt);
-  err.message = format(state->allocator, fmt, args);
+  err.message = format(fmt, args);
   darray_append(state->errors, err);
 }
 
@@ -67,15 +67,12 @@ static void add_to_symbol_table(parser_state_t *state, char *symbol,
   }
 }
 
-static ast_node_t *make_node(allocator_t allocator) {
-  ast_node_t *node = allocator_alloc_or_exit(allocator, sizeof(ast_node_t));
-  return node;
-}
+static ast_node_t *make_node() { return imust_alloc(sizeof(ast_node_t)); }
 
 static ast_node_t *parse_int_literal(parser_state_t *state) {
   token_t *token = get_token(state);
   if (token->type == ika_int_literal) {
-    ast_node_t *node = make_node(state->allocator);
+    ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
     node->column = token->position.column;
@@ -91,7 +88,7 @@ static ast_node_t *parse_int_literal(parser_state_t *state) {
 static ast_node_t *parse_float_literal(parser_state_t *state) {
   token_t *token = get_token(state);
   if (token->type == ika_float_literal) {
-    ast_node_t *node = make_node(state->allocator);
+    ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
     node->column = token->position.column;
@@ -107,7 +104,7 @@ static ast_node_t *parse_float_literal(parser_state_t *state) {
 static ast_node_t *parse_str_literal(parser_state_t *state) {
   token_t *token = get_token(state);
   if (token->type == ika_str_literal) {
-    ast_node_t *node = make_node(state->allocator);
+    ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
     node->column = token->position.column;
@@ -123,7 +120,7 @@ static ast_node_t *parse_str_literal(parser_state_t *state) {
 static ast_node_t *parse_bool_literal(parser_state_t *state) {
   token_t *token = get_token(state);
   if (token->type == ika_bool_literal) {
-    ast_node_t *node = make_node(state->allocator);
+    ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
     node->column = token->position.column;
@@ -139,7 +136,7 @@ static ast_node_t *parse_bool_literal(parser_state_t *state) {
 static ast_node_t *parse_symbol(parser_state_t *state) {
   token_t *token = get_token(state);
   if (token->type == ika_symbol) {
-    ast_node_t *node = make_node(state->allocator);
+    ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
     node->column = token->position.column;
@@ -158,14 +155,14 @@ static ast_node_t *parse_fn_call(parser_state_t *state) {
   if (token->type == ika_symbol) {
     ast_node_t *symbol = parse_symbol(state);
     if (expect_and_consume(state, ika_paren_open)) {
-      da_nodes *exprs = darray_init(state->allocator, ast_node_t);
+      da_nodes *exprs = darray_init(ast_node_t);
       do {
         ast_node_t *expr = parse_expr(state);
         if (expr)
           darray_append(exprs, *expr);
       } while (expect_and_consume(state, ika_comma));
       if (expect_and_consume(state, ika_paren_close)) {
-        ast_node_t *node = make_node(state->allocator);
+        ast_node_t *node = make_node();
         node->starting_token = token;
         node->line = token->position.line;
         node->column = token->position.column;
@@ -229,7 +226,7 @@ static ast_node_t *parse_inner_term(parser_state_t *state,
       advance_token_pointer(state);
       ast_node_t *literal = parse_literal(state);
       if (literal) {
-        ast_node_t *node = make_node(state->allocator);
+        ast_node_t *node = make_node();
         node->starting_token = longest->starting_token;
         node->line = longest->starting_token->position.line;
         node->column = longest->starting_token->position.column;
@@ -274,7 +271,7 @@ static ast_node_t *parse_inner_expr(parser_state_t *state,
       advance_token_pointer(state);
       ast_node_t *term = parse_term(state);
       if (term) {
-        ast_node_t *node = make_node(state->allocator);
+        ast_node_t *node = make_node();
         node->starting_token = longest->starting_token;
         node->line = longest->starting_token->position.line;
         node->column = longest->starting_token->position.column;
@@ -343,7 +340,7 @@ static ast_node_t *parse_decl(parser_state_t *state) {
   if (symbol && expect_and_consume(state, ika_colon)) {
     e_ika_type type = parse_ika_type(state);
     add_to_symbol_table(state, symbol->symbol.value, type, false, token, 0);
-    ast_node_t *node = make_node(state->allocator);
+    ast_node_t *node = make_node();
     node->type = ast_decl;
     node->starting_token = token;
     node->line = token->position.line;
@@ -351,8 +348,9 @@ static ast_node_t *parse_decl(parser_state_t *state) {
     node->decl.symbol = symbol;
     node->decl.type = type;
     token_t *next_token = get_token(state);
-    if (type != ika_unknown && next_token->type != ika_assign && !constant) {
-      node->decl.expr = NULL;                    // Just a declaration
+    if (type != ika_unknown && next_token->type != ika_assign &&
+        !constant) { // Just a declaration
+      node->decl.expr = NULL;
     } else if (next_token->type == ika_assign) { // Declaration and assignment
       advance_token_pointer(state);
       node->decl.expr = must_parse_expr(state);
@@ -378,7 +376,7 @@ static ast_node_t *parse_assignment(parser_state_t *state) {
       symbol_table_entry_t *var =
           symbol_table_lookup(state->current_scope, symbol->symbol.value);
       if (var) {
-        ast_node_t *node = make_node(state->allocator);
+        ast_node_t *node = make_node();
         node->starting_token = token;
         node->line = token->position.line;
         node->column = token->position.column;
@@ -408,15 +406,15 @@ static ast_node_t *parse_block(parser_state_t *state) {
     // state and link it to the block/scope.  The current symbol table
     // must be restored afterwards.
     symbol_table_t *child_symbol_table =
-        make_symbol_table(state->allocator, state->current_scope);
+        make_symbol_table(state->current_scope);
     state->current_scope = child_symbol_table;
 
-    ast_node_t *node = make_node(state->allocator);
+    ast_node_t *node = make_node();
     node->starting_token = token;
     node->type = ast_block;
     node->line = token->position.line;
     node->column = token->position.line;
-    node->block.nodes = darray_init(state->allocator, ast_node_t);
+    node->block.nodes = darray_init(ast_node_t);
     node->block.symbol_table = child_symbol_table;
     advance_token_pointer(state); // Move past opening brace
     while (get_token(state)->type != ika_brace_close) {
@@ -450,12 +448,11 @@ static ast_node_t *parse_fn(parser_state_t *state) {
     advance_token_pointer(state);
     ast_node_t *symbol = parse_symbol(state);
     if (symbol) {
-      da_nodes *decls = darray_init(state->allocator, ast_node_t);
+      da_nodes *decls = darray_init(ast_node_t);
       e_ika_type return_type = ika_void;
       if (expect_and_consume(state, ika_paren_open)) {
         // Function parameters are in their own scope
-        params_symbol_table =
-            make_symbol_table(state->allocator, state->current_scope);
+        params_symbol_table = make_symbol_table(state->current_scope);
         state->current_scope = params_symbol_table;
         do {
           ast_node_t *decl = parse_decl(state);
@@ -490,7 +487,7 @@ static ast_node_t *parse_fn(parser_state_t *state) {
         // Restore scope to outer scope so function is defined in the proper
         // symbol table
         state->current_scope = function_scope;
-        ast_node_t *node = make_node(state->allocator);
+        ast_node_t *node = make_node();
         node->starting_token = token;
         node->line = token->position.line;
         node->column = token->position.line;
@@ -521,7 +518,7 @@ static ast_node_t *parse_if_statement(parser_state_t *state) {
     if (expr) {
       ast_node_t *if_block = parse_block(state);
       if (if_block) {
-        ast_node_t *node = make_node(state->allocator);
+        ast_node_t *node = make_node();
         node->starting_token = token;
         node->line = token->position.line;
         node->column = token->position.line;
@@ -559,7 +556,7 @@ static ast_node_t *parse_return(parser_state_t *state) {
     // Will be null in the case of a bare return
     ast_node_t *expr = parse_expr(state);
 
-    ast_node_t *node = make_node(state->allocator);
+    ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
     node->column = token->position.line;
@@ -607,24 +604,20 @@ ast_node_t *parse_node(parser_state_t *state) {
   return NULL;
 }
 
-ast_node_t *parser_parse(allocator_t allocator, da_tokens *tokens,
-                         da_syntax_errors *errors) {
-  parser_state_t parser_state = (parser_state_t){.current_token = 0,
-                                                 .tokens = tokens,
-                                                 .allocator = allocator,
-                                                 .errors = errors};
+ast_node_t *parser_parse(da_tokens *tokens, da_syntax_errors *errors) {
+  parser_state_t parser_state =
+      (parser_state_t){.current_token = 0, .tokens = tokens, .errors = errors};
 
-  symbol_table_t *symbol_table = make_symbol_table(allocator, NULL);
+  symbol_table_t *symbol_table = make_symbol_table(NULL);
   parser_state.current_scope = symbol_table;
 
-  ast_node_t *root = make_node(allocator);
+  ast_node_t *root = make_node();
   root->starting_token = get_token(&parser_state);
   root->line = root->starting_token->position.line;
   root->column = root->starting_token->position.line;
   root->type = ast_block;
   root->block.symbol_table = symbol_table;
-  da_nodes *child_nodes = darray_init(allocator, da_nodes);
-  printf("Size of ast_node_t: %li\n", sizeof(ast_node_t));
+  da_nodes *child_nodes = darray_init(ast_node_t);
   while (parser_state.current_token < darray_info(parser_state.tokens)->count) {
     ast_node_t *node = parse_node(&parser_state);
     // Node parsing can return null in cases like comments, etc/

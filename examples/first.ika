@@ -81,6 +81,6 @@ fn i_should_return(x: int, y: int, z: int): int {
 a_simple_assignment_at_the_end := 1000
 
 // Alternate syntax for functions...
-//double := (x int, y int) int {
+//fn double(x int, y int): int {
 //  return x * y
 //}

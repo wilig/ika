@@ -25,15 +25,14 @@ typedef struct {
   u32 pos;
   char *source;
   u64 source_length;
-  allocator_t allocator;
   da_syntax_errors *errors;
 } tokenizer_input_stream_t;
 
 // Alias to be explicit that it's a dynamic array
 typedef token_t da_tokens;
 
-da_tokens *tokenizer_scan(allocator_t allocator, char *source,
-                          u64 source_length, da_syntax_errors *errors);
+da_tokens *tokenizer_scan(char *source, u64 source_length,
+                          da_syntax_errors *errors);
 
 // Debugging stuff
 void tokenizer_print_token(FILE *, token_t *);

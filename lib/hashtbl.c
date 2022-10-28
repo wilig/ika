@@ -12,7 +12,7 @@ uint32_t str_hash(str s, uint64_t table_capacity) {
   return hash % table_capacity;
 }
 
-bool hashtbl_str_insert(hashtbl_str_t *ht, str_entry_t entry) {
+b8 hashtbl_str_insert(hashtbl_str_t *ht, str_entry_t entry) {
   /* allocated_memory mem = allocator_alloc(ht->allocator, sizeof(str_entry_t));
    */
   /* if (!mem.valid) { */
@@ -20,8 +20,7 @@ bool hashtbl_str_insert(hashtbl_str_t *ht, str_entry_t entry) {
   /*   return false; */
   /* } */
 
-  str_entry_t *new_entry =
-      allocator_alloc_or_exit(ht->allocator, sizeof(str_entry_t));
+  str_entry_t *new_entry = imust_alloc(sizeof(str_entry_t));
   memcpy(new_entry, &entry, sizeof(str_entry_t));
 
   uint32_t idx = str_hash(entry.key, ht->capacity);
@@ -29,24 +28,23 @@ bool hashtbl_str_insert(hashtbl_str_t *ht, str_entry_t entry) {
   ht->entry_count = ht->entry_count + 1;
   if (ht->entries[idx] == NULL) {
     ht->entries[idx] = new_entry;
-    return true;
+    return TRUE;
   } else { // Handle collision
-    log_info("Hash collision, adding item to list.\n");
+    INFO("Hash collision, adding item to list.\n");
     str_entry_t *existing_entry = ht->entries[idx];
-    log_info("'{s}' collides with '{s}'\n", new_entry->key,
-             existing_entry->key);
+    INFO("'%s' collides with '%s'\n", new_entry->key, existing_entry->key);
     while (existing_entry->next != NULL &&
-           str_eq(existing_entry->key, new_entry->key) == false) {
+           str_eq(existing_entry->key, new_entry->key) == FALSE) {
       existing_entry = existing_entry->next;
     }
     if (str_eq(new_entry->key, existing_entry->key)) {
-      log_info("Key already in hashtable, delete first if you want to replace "
-               "it.\n");
+      INFO("Key already in hashtable, delete first if you want to replace "
+           "it.\n");
       ht->entry_count -= 1;
-      return false;
+      return FALSE;
     } else {
       existing_entry->next = new_entry;
-      return true;
+      return TRUE;
     }
   }
 }
@@ -57,8 +55,7 @@ bool hashtbl_str_insert(hashtbl_str_t *ht, str_entry_t entry) {
 // This may be a bad idea, but I'm going with it for now.  Time will tell.
 hashtbl_str_keys_t hashtbl_str_get_keys(hashtbl_str_t *ht) {
   assert(ht->valid);
-  str **keys =
-      allocator_alloc_or_exit(ht->allocator, sizeof(str *) * ht->entry_count);
+  str **keys = imust_alloc(sizeof(str *) * ht->entry_count);
   size_t count = 0;
   for (int i = 0; i < ht->capacity; i++) {
     if (ht->entries[i] != NULL) {
@@ -75,7 +72,7 @@ hashtbl_str_keys_t hashtbl_str_get_keys(hashtbl_str_t *ht) {
 
 // Free the key memory
 void hashtbl_str_free_keys(hashtbl_str_t ht, hashtbl_str_keys_t keys) {
-  allocator_free(ht.allocator, keys.keys);
+  ifree(keys.keys);
 }
 
 str_entry_t *hashtbl_str_lookup(hashtbl_str_t *ht, str key) {
@@ -96,7 +93,7 @@ str_entry_t *hashtbl_str_lookup(hashtbl_str_t *ht, str key) {
   }
 }
 
-bool hashtbl_str_remove(hashtbl_str_t *ht, str key) {
+b8 hashtbl_str_remove(hashtbl_str_t *ht, str key) {
   uint32_t idx = str_hash(key, ht->capacity);
 
   if (ht->entries[idx] != NULL) {
@@ -109,8 +106,8 @@ bool hashtbl_str_remove(hashtbl_str_t *ht, str key) {
       } else {
         ht->entries[idx] = NULL;
       }
-      allocator_free(ht->allocator, entry);
-      return true;
+      ifree(entry);
+      return TRUE;
     }
     // Let's go looking
     str_entry_t *next_entry = entry;
@@ -120,21 +117,18 @@ bool hashtbl_str_remove(hashtbl_str_t *ht, str key) {
     }
     if (str_eq(next_entry->key, key)) {
       entry->next = next_entry->next;
-      allocator_free(ht->allocator, next_entry);
-      return true;
+      ifree(next_entry);
+      return TRUE;
     }
   }
-  return false;
+  return FALSE;
 }
 
-hashtbl_str_t *hashtbl_str_init(allocator_t allocator) {
-  hashtbl_str_t *self =
-      allocator_alloc_or_exit(allocator, sizeof(hashtbl_str_t));
-  self->allocator = allocator;
-  self->entries = allocator_alloc_or_exit(allocator, sizeof(str_entry_t) *
-                                                         DEFAULT_CAPACITY);
+hashtbl_str_t *hashtbl_str_init() {
+  hashtbl_str_t *self = imust_alloc(sizeof(hashtbl_str_t));
+  self->entries = imust_alloc(sizeof(str_entry_t) * DEFAULT_CAPACITY);
   self->entry_count = 0;
-  self->valid = true;
+  self->valid = TRUE;
   self->capacity = DEFAULT_CAPACITY;
   return self;
 }

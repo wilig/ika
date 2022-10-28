@@ -17,10 +17,10 @@
 * DONE Stop using str, and revert to char *  (big update)
 * NO Move errors out to a separate file, and use an enum
 * DONE Use parse_decl in assignment and remove the untyped assign operator
-* TODO add macros for dynarray
-* TODO Move allocator to be static reference so it doesn't need to be passed around
-* TODO Visit every nested block in a function a prove all exits have required returns
+* DONE add macros for dynarray
+* DONE Move allocator to be static reference so it doesn't need to be passed around
 * TODO Make true/false reserved words as well as values??
+* TODO Visit every nested block in a function a prove all exits have required returns
 * NO Rename block to scope??
 * TODO Use levenstein(sp?) distance to detect symbol typos
 * TODO Add more asserts to switch statements default case

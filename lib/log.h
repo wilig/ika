@@ -1,13 +1,12 @@
 #pragma once
 
+#include "defines.h"
 #include <stdio.h>
 
-#include "hashtbl.h"
-
-#define ANSI_ESCAPE_RED cstr("\x1b[31m")
-#define ANSI_ESCAPE_YELLOW cstr("\x1b[33m")
-#define ANSI_ESCAPE_GREEN cstr("\x1b[32m")
-#define ANSI_ESCAPE_DEFAULT cstr("\x1b[0m")
+#define ANSI_ESCAPE_RED "\x1b[31m"
+#define ANSI_ESCAPE_YELLOW "\x1b[33m"
+#define ANSI_ESCAPE_GREEN "\x1b[32m"
+#define ANSI_ESCAPE_DEFAULT "\x1b[0m"
 
 typedef enum log_level {
   debug_log_level,
@@ -18,25 +17,19 @@ typedef enum log_level {
 } log_level;
 
 typedef struct logger_configuration {
-  bool valid;
   enum log_level active_log_level;
   FILE *file_handle;
-  hashtbl_str_t *handlers;
 } logger_configuration;
 
-void log_debug(char *, ...);
-void log_info(char *, ...);
-void log_warn(char *, ...);
-void log_error(char *, ...);
-void log_fatal(char *, ...);
+void _do_log_entry(log_level, char *, ...);
+void _log_fatal(char *file, u32 line, char *fmt, ...);
 
-void log_init(allocator_t, logger_configuration);
+#define DEBUG(fmt, ...) _do_log_entry(debug_log_level, fmt, ##__VA_ARGS__)
+#define INFO(fmt, ...) _do_log_entry(info_log_level, fmt, ##__VA_ARGS__)
+#define WARN(fmt, ...) _do_log_entry(warn_log_level, fmt, ##__VA_ARGS__)
+#define ERROR(fmt, ...) _do_log_entry(error_log_level, fmt, ##__VA_ARGS__)
+#define FATAL(fmt, ...) _log_fatal(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
-void log_deinit(void);
+void initialize_logging(logger_configuration);
 
-void log_register_type(str, void func(FILE *, void *));
-
-#define output(fh, value)                                                      \
-  _Generic((value), \
-  char * : output_char_impl, \
-  default : output_str_impl)(fh, value)
+void shutdown_logging(void);

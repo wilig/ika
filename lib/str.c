@@ -19,33 +19,28 @@ str cstr_from_char_with_length(const char *raw_chars, uint32_t length) {
 
 uint32_t str_len(str s) { return s.length; }
 
-bool str_eq(str s1, str s2) {
+b8 str_eq(str s1, str s2) {
   if (s1.length != s2.length)
-    return false;
+    return FALSE;
   for (uint32_t i = 0; i < s1.length; i++) {
     if (s1.ptr[i] != s2.ptr[i])
-      return false;
+      return FALSE;
   }
-  return true;
+  return TRUE;
 }
 
 str str_substr(str s, uint32_t starting_idx, uint32_t length) {
   return (str){.ptr = &s.ptr[starting_idx], .length = length};
 }
 
-str str_substr_copy(allocator_t allocator, str s, uint32_t starting_idx,
-                    uint32_t length) {
-  allocated_memory mem = allocator_alloc(allocator, sizeof(uint8_t) * length);
-  if (!mem.valid) {
-    log_error("Couldn't allocate memory for str_substr_copy");
-    exit(-1);
-  }
-  memcpy(mem.ptr, &s.ptr[starting_idx], length);
-  return (str){.ptr = mem.ptr, .length = length};
+str str_substr_copy(str s, uint32_t starting_idx, uint32_t length) {
+  void *mem = imust_alloc(sizeof(uint8_t) * length);
+  memcpy(mem, &s.ptr[starting_idx], length);
+  return (str){.ptr = mem, .length = length};
 }
 
-void str_copy(allocator_t allocator, str src, str *dest) {
-  char *copy = allocator_alloc_or_exit(allocator, sizeof(char) * src.length);
+void str_copy(str src, str *dest) {
+  char *copy = imust_alloc(sizeof(char) * src.length);
   memcpy(copy, src.ptr, src.length);
   dest->ptr = copy;
   dest->length = src.length;
@@ -58,16 +53,16 @@ char str_get_char(str s, uint32_t pos) {
   return 0;
 }
 
-bool str_matches_at_index(str haystack, str needle, uint32_t position) {
+b8 str_matches_at_index(str haystack, str needle, uint32_t position) {
   if (position + needle.length > haystack.length) {
-    return false;
+    return FALSE;
   }
   for (int i = 0; i < needle.length; i++) {
     if (haystack.ptr[position + i] != needle.ptr[i]) {
-      return false;
+      return FALSE;
     }
   }
-  return true;
+  return TRUE;
 }
 
 int str_find_idx_of_nth(uint32_t nth, str haystack, str needle) {
@@ -86,12 +81,11 @@ int str_find_idx_of_nth(uint32_t nth, str haystack, str needle) {
   return -1;
 }
 
-bool str_contains(str haystack, str needle) {
+b8 str_contains(str haystack, str needle) {
   return str_find_idx_of_nth(1, haystack, needle) != -1;
 }
 
-char *str_to_cstr(allocator_t allocator, str value) {
-  char *new_str = allocator_alloc_or_exit(
-      allocator, value.length + 1); // Add room for the trailing \0
+char *str_to_cstr(str value) {
+  char *new_str = imust_alloc(value.length + 1); // Add room for the trailing \0
   return strncpy(new_str, value.ptr, value.length);
 }

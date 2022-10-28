@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static linear_allocator_t *root_allocator = NULL;
+
 static allocator_memory_chunk_t *
 linear_allocator_new_chunk(uint64_t amount_to_alloc) {
   allocator_memory_chunk_t *new_chunk =
@@ -12,7 +14,7 @@ linear_allocator_new_chunk(uint64_t amount_to_alloc) {
   int8_t *mem_ptr = calloc(amount_to_alloc, 1);
   if (new_chunk != NULL && mem_ptr != NULL) { // Success
     new_chunk->mem_ptr = mem_ptr;
-    new_chunk->valid = true;
+    new_chunk->valid = TRUE;
     new_chunk->capacity = amount_to_alloc;
     new_chunk->free_space = amount_to_alloc;
     new_chunk->next = NULL;
@@ -21,130 +23,78 @@ linear_allocator_new_chunk(uint64_t amount_to_alloc) {
   return NULL;
 }
 
-allocated_memory linear_allocator_alloc(allocator_t allocator,
-                                        uint64_t bytes_to_alloc) {
-  if (allocator.valid) {
-    // Get internal details
-    linear_allocator_t *la =
-        (linear_allocator_t *)allocator.allocator_internals;
-    allocator_memory_chunk_t *chunk = la->current_chunk;
+void *imust_alloc(u64 bytes) {
+  if (root_allocator) {
+    void *mem_ptr = ialloc(bytes);
+    if (mem_ptr) {
+      return mem_ptr;
+    } else {
+      FATAL("Could not allocate %li bytes of memory\n", bytes);
+      return NULL;
+    }
+  } else {
+    WARN("Allocation requested before allocator was initialized.  Using raw "
+         "calloc.");
+    return calloc(bytes, 1);
+  }
+}
+
+void *ialloc(u64 bytes) {
+  if (root_allocator) {
+    allocator_memory_chunk_t *chunk = root_allocator->current_chunk;
 
     // Handle overflow
-    if (bytes_to_alloc > chunk->free_space) {
-      chunk = bytes_to_alloc > la->chunk_size
-                  ? linear_allocator_new_chunk(bytes_to_alloc)
-                  : linear_allocator_new_chunk(la->chunk_size);
+    if (bytes > chunk->free_space) {
+      chunk = bytes > root_allocator->chunk_size
+                  ? linear_allocator_new_chunk(bytes)
+                  : linear_allocator_new_chunk(root_allocator->chunk_size);
       if (chunk != NULL) {
-        la->current_chunk->next = chunk;
-        la->current_chunk = chunk;
+        root_allocator->current_chunk->next = chunk;
+        root_allocator->current_chunk = chunk;
       } else {
-        return (allocated_memory){.valid = false, .ptr = 0};
+        return NULL;
       }
     }
-    void *ptr = chunk->mem_ptr + (chunk->capacity - chunk->free_space);
+    void *mem_ptr = chunk->mem_ptr + (chunk->capacity - chunk->free_space);
     // Clear the memory
-    memset(ptr, 0x0, bytes_to_alloc);
-    chunk->free_space -= bytes_to_alloc;
-
-    return (allocated_memory){
-        .ptr = ptr, .valid = true, .size = bytes_to_alloc};
+    memset(mem_ptr, 0x0, bytes);
+    chunk->free_space -= bytes;
+    return mem_ptr;
   } else {
-    return (allocated_memory){.ptr = 0, .valid = false};
+    WARN("Allocation requested before allocator was initialized.  Using raw "
+         "calloc.");
+    return calloc(bytes, 1);
   }
 }
 
-allocated_memory linear_allocator_realloc(allocator_t allocator,
-                                          allocated_memory mem,
-                                          uint64_t bytes_to_allocate) {
-  allocated_memory new_mem =
-      linear_allocator_alloc(allocator, mem.size + bytes_to_allocate);
-  if (new_mem.valid) {
-    memcpy(new_mem.ptr, mem.ptr, mem.size);
-    assert(memcmp(mem.ptr, new_mem.ptr, mem.size) == 0);
-  }
-  return new_mem;
-}
+// A no-op for now
+void ifree(void *mem) {}
 
-void linear_allocator_free(allocator_t self, void *mem) {}
-void linear_allocator_deinit(allocator_t self) {
-  if (self.valid) {
-    linear_allocator_t *la = (linear_allocator_t *)self.allocator_internals;
-    allocator_memory_chunk_t *head = la->head;
-    allocator_memory_chunk_t *next = la->head->next;
+void shutdown_allocator() {
+  if (root_allocator) {
+    allocator_memory_chunk_t *head = root_allocator->head;
+    allocator_memory_chunk_t *next = root_allocator->head->next;
     while (head != NULL) {
       free(head->mem_ptr);
       free(head);
       head = next;
       next = head->next;
     }
-    free(la);
+    free(root_allocator);
   }
 }
 
-allocator_t make_linear_allocator(linear_allocator_options options) {
-  const uint64_t chunk_size =
-      options.chunk_size == 0 ? DEFAULT_CHUNK_SIZE : options.chunk_size;
-  assert(chunk_size > 0);
-  linear_allocator_t *la = calloc(sizeof(linear_allocator_t), 1);
-  if (la != NULL) {
-    allocator_memory_chunk_t *chunk = linear_allocator_new_chunk(chunk_size);
+b8 initialize_allocator() {
+  root_allocator = calloc(sizeof(linear_allocator_t), 1);
+  if (root_allocator != NULL) {
+    allocator_memory_chunk_t *chunk =
+        linear_allocator_new_chunk(DEFAULT_CHUNK_SIZE);
     if (chunk != NULL) {
-      la->head = chunk;
-      la->current_chunk = chunk;
-      la->chunk_size = chunk_size;
-      return (allocator_t){.allocator_internals = la, .valid = true};
+      root_allocator->head = chunk;
+      root_allocator->current_chunk = chunk;
+      root_allocator->chunk_size = DEFAULT_CHUNK_SIZE;
+      return TRUE;
     }
   }
-  log_error("Creating linear allocator, failed.");
-  return (allocator_t){.valid = false};
-}
-
-allocator_t allocator_init(allocator_type type, allocator_options options) {
-  switch (type) {
-  case linear_allocator:
-    return make_linear_allocator(options.linear);
-  }
-}
-
-void allocator_deinit(allocator_t allocator) {
-  switch (allocator.type) {
-  case linear_allocator:
-    linear_allocator_deinit(allocator);
-    break;
-  }
-}
-
-allocated_memory allocator_alloc(allocator_t allocator,
-                                 uint64_t bytes_to_alloc) {
-  switch (allocator.type) {
-  case linear_allocator:
-    return linear_allocator_alloc(allocator, bytes_to_alloc);
-    break;
-  }
-}
-
-allocated_memory allocator_realloc(allocator_t allocator, allocated_memory mem,
-                                   uint64_t bytes_to_alloc) {
-  switch (allocator.type) {
-  case linear_allocator:
-    return linear_allocator_realloc(allocator, mem, bytes_to_alloc);
-    break;
-  }
-}
-
-void *allocator_alloc_or_exit(allocator_t allocator, uint64_t bytes_to_alloc) {
-  allocated_memory mem = allocator_alloc(allocator, bytes_to_alloc);
-  if (!mem.valid) {
-    log_fatal("Failed to allocate {u64} bytes of memory, exiting.",
-              bytes_to_alloc);
-  }
-  return mem.ptr;
-}
-
-void allocator_free(allocator_t allocator, void *mem) {
-  switch (allocator.type) {
-  case linear_allocator:
-    linear_allocator_free(allocator, mem);
-    break;
-  }
+  return FALSE;
 }

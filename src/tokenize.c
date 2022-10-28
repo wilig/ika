@@ -34,7 +34,7 @@ static void tokenization_error(tokenizer_input_stream_t *s, const char *fmt,
       .line = pos.line, .column = pos.column, .pass = TOKENIZE};
   va_list args;
   va_start(args, fmt);
-  err.message = format(s->allocator, fmt, args);
+  err.message = format(fmt, args);
   darray_append(s->errors, err);
   va_end(args);
 }
@@ -107,7 +107,7 @@ static bool is_valid_string_escape_character(tokenizer_input_stream_t *s) {
 static char *tokenizer_extract_value(tokenizer_input_stream_t *s,
                                      uint32_t start, uint32_t end) {
   u64 len = (end - start) + 1;
-  char *buffer = allocator_alloc_or_exit(s->allocator, len);
+  char *buffer = imust_alloc(len);
   strncpy(buffer, &s->source[start], len - 1);
   buffer[len] = 0; // Ensure the string is null terminated
   return buffer;
@@ -262,11 +262,10 @@ static token_t tokenize_numeric(tokenizer_input_stream_t *s) {
   };
 }
 
-da_tokens *tokenizer_scan(allocator_t allocator, char *source,
-                          u64 source_length, da_syntax_errors *errors) {
-  da_tokens *tokens = darray_init(allocator, token_t);
-  tokenizer_input_stream_t s = {.allocator = allocator,
-                                .source = source,
+da_tokens *tokenizer_scan(char *source, u64 source_length,
+                          da_syntax_errors *errors) {
+  da_tokens *tokens = darray_init(token_t);
+  tokenizer_input_stream_t s = {.source = source,
                                 .source_length = source_length,
                                 .pos = 0,
                                 .errors = errors};

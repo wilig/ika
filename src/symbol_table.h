@@ -32,13 +32,11 @@ typedef struct {
 } symbol_table_entry_t;
 
 typedef struct symbol_table_t {
-  allocator_t allocator;
   struct symbol_table_t *parent;
   hashtbl_str_t *table;
 } symbol_table_t;
 
-symbol_table_t *make_symbol_table(allocator_t allocator,
-                                  symbol_table_t *parent);
+symbol_table_t *make_symbol_table(symbol_table_t *parent);
 
 IKA_STATUS symbol_table_insert(symbol_table_t *, char *name, e_ika_type type,
                                bool constant, void *node, uint32_t line);

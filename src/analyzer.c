@@ -15,7 +15,7 @@ static void analyzer_error(analyzer_context_t ctx, u32 line, u32 column,
   syntax_error_t err = {.line = line, .column = column, .pass = TYPING};
   va_list args;
   va_start(args, fmt);
-  err.message = format(ctx.allocator, fmt, args);
+  err.message = format(fmt, args); // Leak
   darray_append(ctx.errors, err);
   va_end(args);
 }
@@ -245,10 +245,8 @@ static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
 void analyzer_analyze(compilation_unit_t *unit) {
   // Assumes the root node is a block
   assert(unit->root->type == ast_block);
-  analyzer_context_t ctx = {.allocator = unit->allocator,
-                            .errors = unit->errors,
-                            .parent = NULL,
-                            .current_function = NULL};
+  analyzer_context_t ctx = {
+      .errors = unit->errors, .parent = NULL, .current_function = NULL};
 
   analyzer_resolve_types(ctx, unit->root);
 }

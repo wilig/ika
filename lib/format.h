@@ -2,6 +2,4 @@
 
 #include <stdarg.h>
 
-#include "allocator.h"
-
-char *format(allocator_t, const char *, va_list);
+char *format(const char *, va_list);

@@ -4,29 +4,29 @@
 
 typedef struct str {
   const char *ptr;
-  uint32_t length;
+  u32 length;
 } str;
 
 str cstr(const char *);
 
-str cstr_from_char_with_length(const char *, uint32_t);
+str cstr_from_char_with_length(const char *, u32);
 
 uint32_t str_len(str);
 
-bool str_eq(str, str);
+b8 str_eq(str, str);
 
-char str_get_char(str, uint32_t);
+char str_get_char(str, u32);
 
-str str_substr(str, uint32_t, uint32_t);
+str str_substr(str, u32, u32);
 
-str str_substr_copy(allocator_t, str, uint32_t, uint32_t);
+str str_substr_copy(str, u32, u32);
 
-void str_copy(allocator_t allocator, str src, str *dest);
+void str_copy(str src, str *dest);
 
-bool str_matches_at_index(str, str, uint32_t);
+b8 str_matches_at_index(str, str, u32);
 
-int str_find_idx_of_nth(uint32_t, str, str);
+int str_find_idx_of_nth(u32, str, str);
 
-bool str_contains(str, str);
+b8 str_contains(str, str);
 
-char *str_to_cstr(allocator_t, str);
+char *str_to_cstr(str);

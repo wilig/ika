@@ -8,7 +8,6 @@
 #define DYNAMIC_ARRAY_DEFAULT_CHUNK_SIZE 25
 
 typedef struct {
-  allocator_t allocator;
   u32 element_size;
   u64 capacity;
   u64 count;
@@ -16,7 +15,7 @@ typedef struct {
   u32 chunk_size;
 } dynamic_array_t;
 
-void *i_dynamic_array_init(allocator_t allocator, u32 element_size);
+void *i_dynamic_array_init(u32 element_size);
 b8 i_dynamic_array_deinit(void *array);
 dynamic_array_t *i_dynamic_array_info(void *array);
 
@@ -27,8 +26,7 @@ b8 i_dynamic_array_put(void *array, uint64_t slot, void *element_ptr);
 void *i_dynamic_array_push(void *array, void *element_ptr);
 b8 i_dynamic_array_pop(void *array, void *element);
 
-#define darray_init(allocator, type)                                           \
-  i_dynamic_array_init(allocator, sizeof(type))
+#define darray_init(type) i_dynamic_array_init(sizeof(type))
 #define darray_deinit(array) i_dynamic_array_deinit(array)
 #define darray_append(array, value)                                            \
   {                                                                            \

@@ -85,7 +85,7 @@ typedef struct {
   ast_node_t *block;
 } fn_t;
 
-typedef struct {
+typedef struct fn_call_t {
   ast_node_t *symbol;
   da_nodes *exprs;
 } fn_call_t;
