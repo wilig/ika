@@ -7,19 +7,19 @@ Ika is a new programming language whose main purpose is to teach its author more
 ## Driving principals
 
 - Be simple, the author is easily confused.
-- Be pragmatic, favor good enought over perfect.
-- Be performant, try to waste less resources.
+- Be pragmatic:  Favor good enough over perfect.
+- Be performant:  Try to waste less resources.
 - Give good error messages, see point one.
 - Offer safety, that can be escaped when needed.
 - Offer useful abstractions around concurrency.
 
 ## Implementation
 
-The "implementation" is currently still quite hypothetical.  It's currently using --Zig-- C, but that is subject to change at any time.  The project has moved to C, as Zig was a bit too raw just yet. 
+Lexing, parsing and a limited typechecker are currently implemented and work for tightly controlled example source files.
 
-## thanks
+## Thanks
 
-Thanks for dropping by, if new programming languages interest you here are some links to ones that are actually worth your time.
+Thanks for dropping by.  If new programming languages interest you here are some links to ones that are actually worth your time.
 
 - [Zig](https://ziglang.org)
 - [Odin](https://www.odin-lang.org)
