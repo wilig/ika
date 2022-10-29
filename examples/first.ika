@@ -62,6 +62,7 @@ if (10 + 1 == 11) {
 // Simple function that returns void
 fn nothing() {
   i_do_nothing := 1
+  return
 }
 
 // Simple function that returns an int

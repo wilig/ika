@@ -19,9 +19,9 @@
 * DONE Use parse_decl in assignment and remove the untyped assign operator
 * DONE add macros for dynarray
 * DONE Move allocator to be static reference so it doesn't need to be passed around
-* TODO Make true/false reserved words as well as values??
-* TODO Visit every nested block in a function a prove all exits have required returns
+* DONE Visit every nested block in a function a prove all exits have required returns
 * NO Rename block to scope??
+* TODO Find and fix segfaults
 * TODO Use levenstein(sp?) distance to detect symbol typos
 * TODO Add more asserts to switch statements default case
 * TODO Command line flags for printing out debug structures (tokens, parse tree, symbol tables, etc)
@@ -34,6 +34,9 @@
 ** DONE prevent using undeclared identifiers
 * IDEA Define my own IR, and possibly a VM for executing code at compile time
 ** TODO constant folding
+** TODO IR design
+** TODO Bytecode generation
 * IDEA Investigate QBE or FASM for backend
+* HOLD Make true/false reserved words as well as values??
 * HOLD Update compilation_unit to store everything related to compilation?
 * HOLD Compile cleanly with all warning flags set

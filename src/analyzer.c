@@ -130,34 +130,44 @@ static void analyze_update_symbol_table(symbol_table_t *symbol_table,
   }
 }
 
-static void analyzer_resolve_function_return(analyzer_context_t ctx,
-                                             ast_node_t *node) {
+static b8 analyzer_resolve_function_return(analyzer_context_t ctx,
+                                           ast_node_t *node,
+                                           e_ika_type expected_return_type) {
 
-  // Simple case: the return statement is in the root function block
-  if (node->fn.block->block.return_statement) {
-    ctx.parent = node->fn.block; // Important: update the code to allow proper
-                                 // symbol table lookup
-    e_ika_type expected_return_type = node->fn.return_type;
-    e_ika_type actual_return_type = determine_type_for_expression(
-        ctx, node->fn.block->block.return_statement->returns.expr);
-    if (expected_return_type != actual_return_type) {
-      analyzer_error(
-          ctx, node->fn.block->block.return_statement->returns.expr->line,
-          node->fn.block->block.return_statement->returns.expr->column,
-          "Unexpected type.\n\nThe function claims to return %s but "
-          "this expression is of type %s.",
-          ika_base_type_table[expected_return_type].label,
-          ika_base_type_table[actual_return_type].label);
+  if (node->block.return_statement) {
+    ctx.parent = node; // Important: update the code to allow proper
+                       // symbol table lookup
+    e_ika_type actual_return_type = ika_void;
+    if (node->block.return_statement->returns.expr) {
+      actual_return_type = determine_type_for_expression(
+          ctx, node->block.return_statement->returns.expr);
     }
-  } else if (node->fn.return_type != ika_void) {
-    ast_node_t *last_node =
-        &node->fn.block->block
-             .nodes[darray_len(node->fn.block->block.nodes) - 1];
-    analyzer_error(ctx, last_node->line, last_node->column,
-                   "Missing return statement");
+    if (expected_return_type != actual_return_type) {
+      analyzer_error(ctx, node->block.return_statement->returns.expr->line,
+                     node->block.return_statement->returns.expr->column,
+                     "Unexpected type.\n\nThe function claims to return %s but "
+                     "this expression is of type %s.",
+                     ika_base_type_table[expected_return_type].label,
+                     ika_base_type_table[actual_return_type].label);
+    }
+    return TRUE;
+  } else {
+    ast_node_t *children = node->block.nodes;
+    for (u32 i = 0; i < darray_len(children); i++) {
+      ast_node_t child = children[i];
+      // Look for all the branching node types, and follow those paths checking
+      // if returns statement are part of the branch.
+      if (child.type == ast_if_statement) {
+        if (child.if_statement.else_block != NULL) {
+          return analyzer_resolve_function_return(
+                     ctx, child.if_statement.if_block, expected_return_type) &&
+                 analyzer_resolve_function_return(
+                     ctx, child.if_statement.else_block, expected_return_type);
+        }
+      }
+    }
+    return expected_return_type == ika_void ? TRUE : FALSE;
   }
-  // TODO: Eventually need to visit every child block recursively and check
-  // for a return statement.  All paths must have a return.
 }
 
 static void analyze_fn_call(analyzer_context_t ctx, fn_call_t *fn_call) {
@@ -205,7 +215,11 @@ static void analyzer_resolve_types(analyzer_context_t ctx, ast_node_t *root) {
       ast_node_t *orig_function = ctx.current_function;
       ctx.current_function = child;
       analyzer_resolve_types(ctx, child->fn.block);
-      analyzer_resolve_function_return(ctx, child);
+      if (!analyzer_resolve_function_return(ctx, child->fn.block,
+                                            child->fn.return_type)) {
+        analyzer_error(ctx, child->line, child->column,
+                       "A return statement is required on all control paths.");
+      }
       ctx.current_function = orig_function;
       break;
     }

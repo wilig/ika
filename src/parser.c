@@ -419,15 +419,17 @@ static ast_node_t *parse_block(parser_state_t *state) {
     advance_token_pointer(state); // Move past opening brace
     while (get_token(state)->type != ika_brace_close) {
       ast_node_t *child_node = parse_node(state);
-      if (child_node->type == ast_return) {
-        node->block.return_statement = child_node;
-      } else if (!node->block.return_statement) {
-        darray_append(node->block.nodes, *child_node);
-      } else {
-        parse_error(state, child_node->starting_token->position.line,
-                    child_node->starting_token->position.column,
-                    "Statement(s) after return.\n\nStatements after a return "
-                    "have no effect\n\n");
+      if (child_node) {
+        if (child_node->type == ast_return) {
+          node->block.return_statement = child_node;
+        } else if (!node->block.return_statement) {
+          darray_append(node->block.nodes, *child_node);
+        } else {
+          parse_error(state, child_node->starting_token->position.line,
+                      child_node->starting_token->position.column,
+                      "Statement(s) after return.\n\nStatements after a return "
+                      "have no effect\n\n");
+        }
       }
     }
     advance_token_pointer(state); // Move past closing brace

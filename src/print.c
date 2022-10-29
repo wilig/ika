@@ -3,7 +3,13 @@
 #include "parser.h"
 #include "types.h"
 
+#include "../lib/assert.h"
+
 void print_node_as_sexpr(ast_node_t *node) {
+  if (!node) {
+    printf("void");
+    return;
+  }
   if (node->type == ast_term) {
     printf("(");
     if (node->term.left)
@@ -51,6 +57,7 @@ void print_indent(uint32_t indent_level) {
 }
 
 void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
+  ASSERT_MSG((node != NULL), "Tried to print a node tree for a null value");
   switch (node->type) {
   case ast_decl: {
     print_indent(indent_level);
