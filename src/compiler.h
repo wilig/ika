@@ -16,6 +16,7 @@ typedef struct scope_t {
 
 typedef struct {
   char *src_file;
+  b8 verbose;
   char *namespace_name;
 
   char *buffer;
@@ -30,5 +31,5 @@ typedef struct {
   syntax_error_t *errors;
 } compilation_unit_t;
 
-compilation_unit_t *new_compilation_unit(char *);
+compilation_unit_t *new_compilation_unit(char *, u64, b8);
 void compile(compilation_unit_t *);

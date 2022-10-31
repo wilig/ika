@@ -9,6 +9,6 @@ typedef struct {
   syntax_error_t *errors;
   ast_node_t *parent;
   ast_node_t *current_function;
-} analyzer_context_t;
+} tc_context_t;
 
-void analyzer_analyze(compilation_unit_t *unit);
+void tc_check(compilation_unit_t *unit);

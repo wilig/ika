@@ -330,22 +330,23 @@ static e_ika_type parse_ika_type(parser_state_t *state) {
 static ast_node_t *parse_decl(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  bool constant = false;
+  b8 constant = FALSE;
   if (token->type == ika_keyword_let) {
-    constant = true;
+    constant = TRUE;
     advance_token_pointer(state);
     token = get_token(state);
   }
   ast_node_t *symbol = parse_symbol(state);
   if (symbol && expect_and_consume(state, ika_colon)) {
     e_ika_type type = parse_ika_type(state);
-    add_to_symbol_table(state, symbol->symbol.value, type, false, token, 0);
+    add_to_symbol_table(state, symbol->symbol.value, type, constant, token, 0);
     ast_node_t *node = make_node();
     node->type = ast_decl;
     node->starting_token = token;
     node->line = token->position.line;
     node->column = token->position.line;
     node->decl.symbol = symbol;
+    node->decl.constant = constant;
     node->decl.type = type;
     token_t *next_token = get_token(state);
     if (type != ika_unknown && next_token->type != ika_assign &&

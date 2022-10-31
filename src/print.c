@@ -1,6 +1,8 @@
-#include "print.h"
+#include <string.h>
+
 #include "ast.h"
 #include "parser.h"
+#include "print.h"
 #include "types.h"
 
 #include "../lib/assert.h"
@@ -164,4 +166,32 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     printf("I can't print a %d yet.\n", node->type);
   }
   }
+}
+
+void print_symbol_table(symbol_table_t *t) {
+  printf("┌-"
+         "─────────────────────────────────────┬────────────────────┬──────────"
+         "─┬─────────────────┐\n");
+  printf("│Name                                  │Type                │ Line   "
+         "   │   Address       │\n");
+  printf("├──────────────────────────────────────┼────────────────────┼────────"
+         "───┼─────────────────┤\n");
+  ;
+
+  hashtbl_str_keys_t ht_keys = hashtbl_str_get_keys(t->table);
+  for (u32 i = 0; i < ht_keys.count; i++) {
+    symbol_table_entry_t *entry =
+        symbol_table_lookup(t, str_to_cstr(*ht_keys.keys[i])); // LEAK
+    printf("│ %-37s", entry->symbol);
+    printf("│ %-19s", ika_base_type_table[entry->type].label);
+    printf("│ %*i", 10, entry->line);
+    printf("│ %*p", 16, entry->node_address);
+    if (entry->constant)
+      printf("│ CONSTANT\n");
+    else
+      printf("│\n");
+  }
+  printf("└──────────────────────────────────────┴────────────────────┴────────"
+         "───┴─────────────────┘\n");
+  ;
 }

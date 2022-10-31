@@ -5,6 +5,9 @@ fn nested(x:int): int {
   if(x == 5) {
     return 5
   } else {
+    if(x == 4) {
+      return 101
+    }
     if(x == 1) {
       return 5
     } else {

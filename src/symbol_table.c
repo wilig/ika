@@ -39,7 +39,6 @@ symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, char *key) {
     return (symbol_table_entry_t *)entry->value;
   } else if (t->parent) { // Traverse up the chain trying to resolve
                           // the symbol
-    printf("Traversing to parent\n");
     return symbol_table_lookup(t->parent, key);
   }
   return NULL;
@@ -78,47 +77,4 @@ void symbol_table_add_reference(symbol_table_t *t, char *key, uint32_t line,
     ERROR("Undefined symbol %s referenced on line %d column %d\n", key, line,
           column);
   }
-}
-
-static void symbol_table_print_fill_space(u64 num_spaces) {
-  for (u64 i = 0; i < num_spaces; i++) {
-    printf(" ");
-  }
-}
-
-static u64 count_digits(u64 n) {
-  if (n == 0)
-    return 1;
-  u64 count = 0;
-  while (n != 0) {
-    n = n / 10;
-    count++;
-  }
-  return count;
-}
-
-void symbol_table_dump(symbol_table_t *t) {
-  printf("--------------------------------------------------------------------"
-         "----------\n");
-  printf("| Name                                 | Type               | Line "
-         "| Column |\n");
-  printf("|--------------------------------------|--------------------|-------"
-         "|--------|\n");
-
-  hashtbl_str_keys_t ht_keys = hashtbl_str_get_keys(t->table);
-  for (u32 i = 0; i < ht_keys.count; i++) {
-    symbol_table_entry_t *entry =
-        symbol_table_lookup(t, str_to_cstr(*ht_keys.keys[i])); // LEAK
-    printf("| %s", entry->symbol);
-    symbol_table_print_fill_space(37 - strlen(entry->symbol));
-    str type_name = cstr(ika_base_type_table[entry->type].label);
-    printf("| %s", type_name.ptr);
-    symbol_table_print_fill_space(19 - type_name.length);
-    printf("| %i", entry->line);
-    symbol_table_print_fill_space(6 - count_digits(entry->line));
-    printf("| %p", entry->node_address);
-    printf("|\n");
-  }
-  printf("--------------------------------------------------------------------"
-         "----------\n\n");
 }

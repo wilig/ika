@@ -21,16 +21,17 @@
 * DONE Move allocator to be static reference so it doesn't need to be passed around
 * DONE Visit every nested block in a function a prove all exits have required returns
 * NO Rename block to scope??
+* DONE Command line flag for printing out debug structures (tokens, parse tree, symbol tables, etc)
+* DONE Improve printing of symbol tables, and print the heirarchy
 * TODO Find and fix segfaults
+** Try to limit pointers in favor of values
 * TODO Use levenstein(sp?) distance to detect symbol typos
 * TODO Add more asserts to switch statements default case
-* TODO Command line flags for printing out debug structures (tokens, parse tree, symbol tables, etc)
-* TODO Improve printing of symbol tables, and print the heirarchy
 * TODO Better error messages!
 ** TODO Add end statement token based on newline or semi colon (Useful for error messaging)
-* TODO Add semantic analysis
+* DONE Add semantic analysis
 ** DONE Add type checking
-** TODO prevent assignment to constants
+** DONE prevent assignment to constants
 ** DONE prevent using undeclared identifiers
 * IDEA Define my own IR, and possibly a VM for executing code at compile time
 ** TODO constant folding
