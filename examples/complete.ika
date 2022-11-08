@@ -11,7 +11,7 @@ print("hello\n");
 
 
 // This defines a new type
-typedef my_data {
+record my_data {
   u32: x,
   u32: y,
   u32: z,

@@ -1,0 +1,13 @@
+
+fn hello() {
+  print "Hello, "
+}
+
+fn world() {
+  print "World\n"
+}
+
+fn main() {
+  hello()
+  world()
+}

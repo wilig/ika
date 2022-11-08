@@ -3,8 +3,9 @@
 #include <stdio.h>
 
 #include "../lib/allocator.h"
-#include "../lib/darray.h"
-#include "../lib/str.h"
+
+#include "rt/darray.h"
+#include "rt/str.h"
 
 #include "defines.h"
 #include "errors.h"

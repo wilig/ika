@@ -124,6 +124,15 @@ static void check_assignment(tc_context_t ctx, ast_node_t *node) {
   }
 }
 
+static void check_print_stmt(tc_context_t ctx, ast_node_t *node) {
+  e_ika_type expr_type =
+      determine_type_for_expression(ctx, node->print_stmt.expr);
+  if (expr_type == ika_unknown) {
+    tc_error(ctx, node->print_stmt.expr->line, node->print_stmt.expr->column,
+             "Cannot print expression as I cannot determine it's type.\n\n");
+  }
+}
+
 static void update_symbol_table(symbol_table_t *symbol_table, char *symbol,
                                 e_ika_type type) {
   symbol_table_entry_t *entry = symbol_table_lookup(symbol_table, symbol);
@@ -158,12 +167,12 @@ static b8 tc_resolve_function_return(tc_context_t ctx, ast_node_t *node,
       ast_node_t child = children[i];
       // Look for all the branching node types, and follow those paths checking
       // if returns statement are part of the branch.
-      if (child.type == ast_if_statement) {
+      if (child.type == ast_if_stmt) {
         b8 if_block_return = tc_resolve_function_return(
-            ctx, child.if_statement.if_block, expected_return_type);
-        if (child.if_statement.else_block != NULL) {
+            ctx, child.if_stmt.if_block, expected_return_type);
+        if (child.if_stmt.else_block != NULL) {
           return if_block_return &&
-                 tc_resolve_function_return(ctx, child.if_statement.else_block,
+                 tc_resolve_function_return(ctx, child.if_stmt.else_block,
                                             expected_return_type);
         }
       }
@@ -224,17 +233,15 @@ static void tc_check_types(tc_context_t ctx, ast_node_t *root) {
       ctx.current_function = orig_function;
       break;
     }
-    case ast_if_statement: {
-      e_ika_type type =
-          determine_type_for_expression(ctx, child->if_statement.expr);
+    case ast_if_stmt: {
+      e_ika_type type = determine_type_for_expression(ctx, child->if_stmt.expr);
       if (type == ika_bool) {
-        tc_check_types(ctx, child->if_statement.if_block);
-        if (child->if_statement.else_block) {
-          tc_check_types(ctx, child->if_statement.else_block);
+        tc_check_types(ctx, child->if_stmt.if_block);
+        if (child->if_stmt.else_block) {
+          tc_check_types(ctx, child->if_stmt.else_block);
         }
       } else {
-        tc_error(ctx, child->if_statement.expr->line,
-                 child->if_statement.expr->column,
+        tc_error(ctx, child->if_stmt.expr->line, child->if_stmt.expr->column,
                  "If expressions must be boolean.\n\nIf statement "
                  "expressions must evaluate to a boolean.\n\n");
       }
@@ -244,6 +251,9 @@ static void tc_check_types(tc_context_t ctx, ast_node_t *root) {
       check_fn_call(ctx, &child->fn_call);
       break;
     }
+    case ast_print_stmt:
+      check_print_stmt(ctx, child);
+      break;
     case ast_return:
     case ast_bool_literal:
     case ast_float_literal:

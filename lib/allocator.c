@@ -78,7 +78,8 @@ void shutdown_allocator() {
       free(head->mem_ptr);
       free(head);
       head = next;
-      next = head->next;
+      if (head != NULL)
+        next = head->next;
     }
     free(root_allocator);
   }

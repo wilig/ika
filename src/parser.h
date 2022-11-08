@@ -3,8 +3,9 @@
 #include <stdbool.h>
 
 #include "../lib/allocator.h"
-#include "../lib/darray.h"
 #include "../lib/hashtbl.h"
+
+#include "rt/darray.h"
 
 #include "ast.h"
 #include "errors.h"

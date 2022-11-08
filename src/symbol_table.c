@@ -45,8 +45,7 @@ symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, char *key) {
 }
 
 IKA_STATUS symbol_table_insert(symbol_table_t *t, char *name, e_ika_type type,
-                               bool constant, void *node_address,
-                               uint32_t line) {
+                               b8 constant, void *node_address, uint32_t line) {
   symbol_table_entry_t *entry = imust_alloc(sizeof(symbol_table_entry_t));
   str *entry_key = imust_alloc(sizeof(str));
   str_copy(cstr(name), entry_key); // Leak
@@ -58,7 +57,7 @@ IKA_STATUS symbol_table_insert(symbol_table_t *t, char *name, e_ika_type type,
   entry->line = line;
   if (!hashtbl_str_insert(
           t->table,
-          (str_entry_t){.key = *entry_key, .valid = true, .value = entry})) {
+          (str_entry_t){.key = *entry_key, .valid = TRUE, .value = entry})) {
     // The identifier is already in the symbol table.  That's an error.
     return ERROR_VARIABLE_REDEFINITION;
   }

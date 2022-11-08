@@ -1,7 +1,7 @@
 #pragma once
 
+#include "../src/rt/str.h"
 #include "allocator.h"
-#include "str.h"
 
 #define DEFAULT_CAPACITY 100
 

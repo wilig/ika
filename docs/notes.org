@@ -10,6 +10,12 @@ the hands of a master this is probably a good thing, but in the hands of
 mere humans it's probably too little direction.  It seems like there is
 an artful balance between too simple and not simple enough.
 
+Should types be first class and available at runtime?  Perhaps have a base
+value struct that retains the type of the value stored in a union.  This
+would allow all sorts of type switching and make many things simpler.
+The tradeoff is speed and memory usage.  Not sure how big that tradeoff
+will be, but I'm going to start in that direction.
+
 Should the language be combined with a code authoring environment?
 
 * Copying parameters vs reference?

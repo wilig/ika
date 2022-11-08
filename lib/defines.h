@@ -7,6 +7,7 @@
 #define u64 uint64_t
 
 #define i8 int8_t
+#define u8 uint8_t
 
 #define TRUE 1
 #define FALSE 0

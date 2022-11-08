@@ -1,8 +1,9 @@
 #include <assert.h>
 
 #include "../lib/allocator.h"
-#include "../lib/darray.h"
 #include "../lib/format.h"
+
+#include "rt/darray.h"
 
 #include "ast.h"
 #include "errors.h"
@@ -399,6 +400,24 @@ static ast_node_t *parse_assignment(parser_state_t *state) {
   return NULL;
 }
 
+static ast_node_t *parse_print_stmt(parser_state_t *state) {
+  token_t *token = get_token(state);
+  uint32_t starting_pos = state->current_token;
+  if (token->type == ika_keyword_print) {
+    advance_token_pointer(state);
+    ast_node_t *node = make_node();
+    node->starting_token = token;
+    node->line = token->position.line;
+    node->column = token->position.column;
+    node->type = ast_print_stmt;
+    node->print_stmt.expr = must_parse_expr(state);
+    return node;
+  }
+  // We failed to parse an assignment rewind the parser state.
+  rollback_token_pointer(state, starting_pos);
+  return NULL;
+}
+
 static ast_node_t *parse_block(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
@@ -434,7 +453,7 @@ static ast_node_t *parse_block(parser_state_t *state) {
       }
     }
     advance_token_pointer(state); // Move past closing brace
-    // Restore the symbol table to the previous scopes table
+    // Restore the scope to its previous state
     state->current_scope = state->current_scope->parent;
     return node;
   }
@@ -525,15 +544,15 @@ static ast_node_t *parse_if_statement(parser_state_t *state) {
         node->starting_token = token;
         node->line = token->position.line;
         node->column = token->position.line;
-        node->type = ast_if_statement;
-        node->if_statement.expr = expr;
-        node->if_statement.if_block = if_block;
+        node->type = ast_if_stmt;
+        node->if_stmt.expr = expr;
+        node->if_stmt.if_block = if_block;
         token = get_token(state);
         if (token->type == ika_keyword_else) {
           advance_token_pointer(state);
           ast_node_t *else_block = parse_block(state);
           if (else_block) {
-            node->if_statement.else_block = else_block;
+            node->if_stmt.else_block = else_block;
           } else {
             token_position_t pos = get_token(state)->position;
             parse_error(
@@ -578,6 +597,9 @@ ast_node_t *parse_node(parser_state_t *state) {
     advance_token_pointer(state);
     return NULL;
   }
+  node = parse_print_stmt(state);
+  if (node)
+    return node;
   node = parse_assignment(state);
   if (node)
     return node;

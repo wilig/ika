@@ -3,9 +3,11 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "../lib/darray.h"
+#include "rt/darray.h"
+
 #include "../lib/log.h"
 
+#include "backend/c11.h"
 #include "compiler.h"
 #include "errors.h"
 #include "parser.h"
@@ -94,6 +96,8 @@ void compile(compilation_unit_t *unit) {
       printf("Root Symbol Table:\n");
       print_symbol_table(root->block.symbol_table);
     }
+    unit->root = root;
+    c11_generate(unit);
     printf("\nTimings:\n");
     printf("Tokenization took: %li ms\n", timer.tokenization);
     printf("Parsing took: %li ms\n", timer.parsing);

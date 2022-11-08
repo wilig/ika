@@ -22,7 +22,7 @@ typedef struct {
 // - the alignment (it's a processor efficiency thing I think)
 // - the location in the source it's defined
 typedef struct {
-  bool constant;
+  b8 constant;
   char *symbol;
   e_ika_type type;
   u32 bytes;     // NOTE: bits might be better in the long run
@@ -39,7 +39,7 @@ typedef struct symbol_table_t {
 symbol_table_t *make_symbol_table(symbol_table_t *parent);
 
 IKA_STATUS symbol_table_insert(symbol_table_t *, char *name, e_ika_type type,
-                               bool constant, void *node, uint32_t line);
+                               b8 constant, void *node, uint32_t line);
 
 symbol_table_entry_t *symbol_table_lookup(symbol_table_t *, char *);
 

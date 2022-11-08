@@ -1,6 +1,6 @@
 #include "format.h"
+#include "../src/rt/str.h"
 #include "allocator.h"
-#include "str.h"
 #include <stdarg.h>
 #include <stdio.h>
 

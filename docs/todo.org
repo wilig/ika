@@ -37,7 +37,9 @@
 ** TODO constant folding
 ** TODO IR design
 ** TODO Bytecode generation
-* IDEA Investigate QBE or FASM for backend
+* TODO Transpile to C for the initial compiler.
+** TODO Build out a standard library in C for supporting this language
+* HOLD Investigate QBE or FASM for backend
 * HOLD Make true/false reserved words as well as values??
 * HOLD Update compilation_unit to store everything related to compilation?
 * HOLD Compile cleanly with all warning flags set

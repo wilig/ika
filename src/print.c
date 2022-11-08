@@ -74,21 +74,21 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     printf("\n");
     break;
   }
-  case ast_if_statement: {
+  case ast_if_stmt: {
     print_indent(indent_level);
     printf("%lc ", 0x251c);
     printf("if ");
-    print_node_as_sexpr(node->if_statement.expr);
+    print_node_as_sexpr(node->if_stmt.expr);
     printf("\n");
     print_indent(indent_level);
     printf("%lc ", 0x251c);
     printf("then\n");
-    print_node_as_tree(node->if_statement.if_block, indent_level);
-    if (node->if_statement.else_block) {
+    print_node_as_tree(node->if_stmt.if_block, indent_level);
+    if (node->if_stmt.else_block) {
       print_indent(indent_level);
       printf("%lc ", 0x251c);
       printf("else\n");
-      print_node_as_tree(node->if_statement.else_block, indent_level);
+      print_node_as_tree(node->if_stmt.else_block, indent_level);
     }
     break;
   }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../lib/allocator.h"
-#include "../lib/str.h"
+#include "rt/str.h"
 
 #include "errors.h"
 #include "parser.h"

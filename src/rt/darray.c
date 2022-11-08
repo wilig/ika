@@ -1,6 +1,8 @@
 #include "darray.h"
-#include "allocator.h"
-#include "log.h"
+
+#include "../../lib/allocator.h"
+#include "../../lib/log.h"
+
 #include <string.h>
 
 // Very simple dynamic array implementation
@@ -42,13 +44,7 @@ b8 i_dynamic_array_deinit(void *array) {
 // Adds a copy of the element parameter to the end of the array
 void *i_dynamic_array_append(void *array, void *element) {
   dynamic_array_t *stats = i_dynamic_array_info(array);
-  if (stats->count < stats->capacity) {
-    int8_t *storage_location =
-        ((int8_t *)array + (stats->element_size * stats->count));
-    memcpy(storage_location, element, stats->element_size);
-    stats->count += 1;
-    return array;
-  } else {
+  if (stats->count >= stats->capacity) {
     // When we run out of capacity, we allocate addition space based on current
     // usage plus our default chunk size.  We then copy the from the old
     // storage to the new storage.
@@ -58,15 +54,21 @@ void *i_dynamic_array_append(void *array, void *element) {
     u64 bytes_to_copy = stats->capacity * stats->element_size;
     void *previous_storage = array;
     int8_t *new_loc = imust_alloc(bytes_to_allocate);
-    // Update the stats, before we copy them over.
-    stats->capacity += stats->chunk_size;
     // Copy stats header
     memcpy(new_loc, stats, sizeof(dynamic_array_t));
     // Copy existing array entries
-    void *new_array = (void *)(new_loc + sizeof(dynamic_array_t));
-    memcpy(new_array, previous_storage, bytes_to_copy);
-    return i_dynamic_array_append(new_array, element);
+    void *resized_array = (void *)(new_loc + sizeof(dynamic_array_t));
+    memcpy(resized_array, previous_storage, bytes_to_copy);
+    // Get stats pointer to the new array
+    stats = i_dynamic_array_info(resized_array);
+    stats->capacity += stats->chunk_size;
+    array = resized_array;
   }
+  int8_t *storage_location =
+      ((int8_t *)array + (stats->element_size * stats->count));
+  memcpy(storage_location, element, stats->element_size);
+  stats->count += 1;
+  return array;
 }
 
 // Returns a pointer to the element in the array.  You must cast the pointer
