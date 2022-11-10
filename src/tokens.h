@@ -1,35 +1,33 @@
 #pragma once
 
-#include "types.h"
-
 typedef enum {
-#define TOKEN(name, _, __) TOKEN_##name,
+#define TOKEN(name, _) TOKEN_##name,
 
-  __types_start,
+  _token_types_start,
 #include "tokens/types.h"
-  __types_stop,
+  _token_types_end,
 
-  __literals_start,
+  _token_literals_start,
 #include "tokens/literals.h"
-  __literals_stop,
+  _token_literals_end,
 
-  __operators_start,
+  _token_operators_start,
 #include "tokens/operators.h"
-  __operators_stop,
+  _token_operators_end,
 
-  __keywords_start,
+  _token_keywords_start,
 #include "tokens/keywords.h"
-  __keywords_end,
+  _token_keywords_end,
 
 #include "tokens/misc.h"
-  TOKEN_EOF,
+  TOKEN(EOF, "")
 
 #undef TOKEN
 } e_token_type;
 
 // Setup a scan map to use for tokenization
 static char *token_char_map[] = {
-#define TOKEN(name, string, _) [TOKEN_##name] = string,
+#define TOKEN(name, string) [TOKEN_##name] = string,
 #include "tokens/keywords.h"
 #include "tokens/literals.h"
 #include "tokens/misc.h"
@@ -38,9 +36,11 @@ static char *token_char_map[] = {
 #undef TOKEN
 };
 
+#define TO_QUOTED_STRING(x) #x
+
 // Create a nice pretty printing array.
 static char *token_as_char[] = {
-#define TOKEN(name, string, _) [TOKEN_##name] = "TOKEN_##name",
+#define TOKEN(name, _) [TOKEN_##name] = TO_QUOTED_STRING(TOKEN_##name),
 #include "tokens/keywords.h"
 #include "tokens/literals.h"
 #include "tokens/misc.h"

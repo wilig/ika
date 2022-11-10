@@ -28,15 +28,15 @@ static f64 float_value(symbol_table_t *st, ast_node_t *node) {
   }
 }
 
-static char ika_type_to_qbe_type(e_ika_type ika_type) {
+static char ika_type_to_qbe_type(e_token_type ika_type) {
   switch (ika_type) {
-  case ika_int:
+  case TOKEN_INT:
     return 'l';
-  case ika_float:
+  case TOKEN_FLOAT:
     return 'd';
-  case ika_str:
+  case TOKEN_STR:
     return 'b';
-  case ika_bool:
+  case TOKEN_BOOL:
     return 'b';
   default: {
     ASSERT_MSG((false), "Unsupported ika->qbe type conversion");
@@ -44,16 +44,16 @@ static char ika_type_to_qbe_type(e_ika_type ika_type) {
   }
 }
 
-static u32 sub_expression(symbol_table_t *st, ast_node_t *node, e_ika_type type,
-                          u32 regnum, u32 *maxreg) {
+static u32 sub_expression(symbol_table_t *st, ast_node_t *node,
+                          e_token_type type, u32 regnum, u32 *maxreg) {
   char expr[250], lhs[100], rhs[100];
-  char type_spec = type == ika_int ? 'l' : 'd';
+  char type_spec = type == TOKEN_INT ? 'l' : 'd';
   ASSERT_MSG((node->type == ast_expr || node->type == ast_term),
              "Expected an expression or term");
   ast_node_t *left = node->type == ast_expr ? node->expr.left : node->term.left;
   ast_node_t *right =
       node->type == ast_expr ? node->expr.right : node->term.right;
-  e_ika_type op = node->type == ast_expr ? node->expr.op : node->term.op;
+  e_token_type op = node->type == ast_expr ? node->expr.op : node->term.op;
   if (regnum < *maxreg) {
     regnum = *maxreg + 1;
     *maxreg += 1;
@@ -64,7 +64,7 @@ static u32 sub_expression(symbol_table_t *st, ast_node_t *node, e_ika_type type,
     u32 i = sub_expression(st, left, type, regnum + 1, maxreg);
     snprintf(lhs, 100, "%c %%r%d", type_spec, i);
   } else {
-    if (type == ika_int)
+    if (type == TOKEN_INT)
       snprintf(lhs, 100, "%c %lu", type_spec, int_value(st, left));
     else
       snprintf(lhs, 100, "%c %f", type_spec, float_value(st, left));
@@ -73,25 +73,25 @@ static u32 sub_expression(symbol_table_t *st, ast_node_t *node, e_ika_type type,
     u32 i = sub_expression(st, right, type, regnum + 1, maxreg);
     snprintf(rhs, 100, "%c %%r%d", type_spec, i);
   } else {
-    if (type == ika_int)
+    if (type == TOKEN_INT)
       snprintf(rhs, 100, "%c %lu", type_spec, int_value(st, right));
     else
       snprintf(rhs, 100, "%c %f", type_spec, float_value(st, right));
   }
   switch (op) {
-  case ika_add:
+  case TOKEN_ADD:
     snprintf(expr, 250, "%%r%d =%c add %s, %s", regnum, type_spec, lhs, rhs);
     printf("%s\n", expr);
     break;
-  case ika_sub:
+  case TOKEN_SUB:
     snprintf(expr, 250, "%%r%d =%c sub %s, %s", regnum, type_spec, lhs, rhs);
     printf("%s\n", expr);
     break;
-  case ika_mul:
+  case TOKEN_MUL:
     snprintf(expr, 250, "%%r%d =%c mul %s, %s", regnum, type_spec, lhs, rhs);
     printf("%s\n", expr);
     break;
-  case ika_quo:
+  case TOKEN_QUO:
     snprintf(expr, 250, "%%r%d =%c div %s, %s", regnum, type_spec, lhs, rhs);
     printf("%s\n", expr);
     break;
@@ -107,7 +107,7 @@ static void build_expression(symbol_table_t *st, ast_node_t *node) {
   ASSERT_MSG((node->type == ast_expr || node->type == ast_term),
              "Expected an expression or term");
   u32 max_reg = 1;
-  sub_expression(st, node, ika_int, 1, &max_reg);
+  sub_expression(st, node, TOKEN_INT, 1, &max_reg);
 }
 
 /* static void build_function(str_builder_t sb, fn_t *fn) { */

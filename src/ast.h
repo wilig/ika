@@ -39,13 +39,13 @@ typedef struct {
 } symbol_t;
 
 typedef struct {
-  e_ika_type op;
+  e_token_type op;
   ast_node_t *left;
   ast_node_t *right;
 } expr_t;
 
 typedef struct {
-  e_ika_type op;
+  e_token_type op;
   ast_node_t *left;
   ast_node_t *right;
 } term_t;
@@ -78,7 +78,7 @@ typedef struct block_t {
 typedef struct {
   b8 constant;
   ast_node_t *symbol;
-  e_ika_type type;
+  e_token_type type;
   ast_node_t *expr;
 } decl_t;
 
@@ -86,7 +86,7 @@ typedef struct {
   ast_node_t *symbol;
   da_nodes *parameters;
   symbol_table_t *parameters_symbol_table;
-  e_ika_type return_type;
+  e_token_type return_type;
   ast_node_t *block;
 } fn_t;
 

@@ -7,6 +7,7 @@
 #include "compiler.h"
 #include "errors.h"
 #include "symbol_table.h"
+#include "tokens.h"
 #include "typechecker.h"
 #include "types.h"
 
@@ -20,17 +21,17 @@ static void tc_error(tc_context_t ctx, u32 line, u32 column, const char *fmt,
   va_end(args);
 }
 
-static e_ika_type determine_type_for_expression(tc_context_t ctx,
-                                                ast_node_t *expression) {
+static e_token_type determine_type_for_expression(tc_context_t ctx,
+                                                  ast_node_t *expression) {
   switch (expression->type) {
   case ast_int_literal:
-    return ika_int;
+    return TOKEN_INT;
   case ast_float_literal:
-    return ika_float;
+    return TOKEN_FLOAT;
   case ast_bool_literal:
-    return ika_bool;
+    return TOKEN_BOOL;
   case ast_str_literal:
-    return ika_str;
+    return TOKEN_STR;
   case ast_symbol: {
     assert(ctx.parent->type == ast_block);
     symbol_table_entry_t *entry = symbol_table_lookup(
@@ -43,37 +44,37 @@ static e_ika_type determine_type_for_expression(tc_context_t ctx,
           "Undefined identifier '%s'.\n\nHint:  Perhaps you meant #todo\n\n",
           expression->symbol.value);
     }
-    return ika_unknown;
+    return TOKEN_UNKNOWN;
   }
   case ast_term:
   case ast_expr: {
-    e_ika_type ltype =
+    e_token_type ltype =
         determine_type_for_expression(ctx, expression->expr.left);
-    e_ika_type rtype =
+    e_token_type rtype =
         determine_type_for_expression(ctx, expression->expr.right);
     if (ltype == rtype) {
-      e_ika_type ot = expression->expr.op;
+      e_token_type ot = expression->expr.op;
       // Is a boolean expression: == != => <= > <
-      if (ot == ika_eql || ot == ika_neq || ot == ika_gte || ot == ika_lte ||
-          ot == ika_gt || ot == ika_lt) {
-        return ika_bool;
+      if (ot == TOKEN_EQL || ot == TOKEN_NEQ || ot == TOKEN_GTE ||
+          ot == TOKEN_LTE || ot == TOKEN_GT || ot == TOKEN_LT) {
+        return TOKEN_BOOL;
       } else {
         return ltype;
       }
-    } else if ((ltype == ika_int && rtype == ika_float) ||
-               (ltype == ika_float && rtype == ika_int)) {
-      return ika_float;
-    } else if (ltype == ika_unknown || rtype == ika_unknown) {
+    } else if ((ltype == TOKEN_INT && rtype == TOKEN_FLOAT) ||
+               (ltype == TOKEN_FLOAT && rtype == TOKEN_INT)) {
+      return TOKEN_FLOAT;
+    } else if (ltype == TOKEN_UNKNOWN || rtype == TOKEN_UNKNOWN) {
       // Punt till later, as it's most likely an error earlier in the analysis
-      return ika_unknown;
+      return TOKEN_UNKNOWN;
     } else {
       tc_error(
           ctx, expression->expr.right->line, expression->expr.right->column,
           "Unsupported operation.\n\nThe %s operator is not supported between "
           "%s and %s.\n\n",
-          ika_base_type_table[expression->expr.op].txt,
-          ika_base_type_table[ltype].label, ika_base_type_table[rtype].label);
-      return ika_unknown;
+          token_as_char[expression->expr.op], token_as_char[ltype],
+          token_as_char[rtype]);
+      return TOKEN_UNKNOWN;
     }
   }
   case ast_fn_call: {
@@ -84,7 +85,7 @@ static e_ika_type determine_type_for_expression(tc_context_t ctx,
       ast_node_t *function = (ast_node_t *)entry->node_address;
       return function->fn.return_type;
     } else {
-      return ika_unknown;
+      return TOKEN_UNKNOWN;
     }
   }
   default: {
@@ -95,15 +96,14 @@ static e_ika_type determine_type_for_expression(tc_context_t ctx,
 
 static void check_decl(tc_context_t ctx, ast_node_t *node) {
   if (node->decl.expr) {
-    e_ika_type type = determine_type_for_expression(ctx, node->decl.expr);
-    if (node->decl.type == ika_unknown) {
+    e_token_type type = determine_type_for_expression(ctx, node->decl.expr);
+    if (node->decl.type == TOKEN_UNKNOWN) {
       node->decl.type = type;
     } else if (node->decl.type != type) {
       tc_error(ctx, node->decl.expr->line, node->decl.expr->column,
                "Type mismatch.\n\nCannot assign type %s to type %s, these "
                "types are not convertable.",
-               ika_base_type_table[type].label,
-               ika_base_type_table[node->decl.type].label);
+               token_as_char[type], token_as_char[node->decl.type]);
     }
   }
 }
@@ -112,14 +112,13 @@ static void check_assignment(tc_context_t ctx, ast_node_t *node) {
   symbol_table_entry_t *entry = symbol_table_lookup(
       ctx.parent->block.symbol_table, node->assignment.symbol->symbol.value);
   if (entry && !entry->constant) {
-    e_ika_type expr_type =
+    e_token_type expr_type =
         determine_type_for_expression(ctx, node->assignment.expr);
     if (entry->type != expr_type) {
       tc_error(ctx, node->decl.expr->line, node->decl.expr->column,
                "Type mismatch.\n\nCannot assign type %s to type %s, these "
                "types are not convertable.",
-               ika_base_type_table[expr_type].label,
-               ika_base_type_table[entry->type].label);
+               token_as_char[expr_type], token_as_char[entry->type]);
     }
   } else if (entry && entry->constant) {
     tc_error(ctx, node->line, node->column,
@@ -131,16 +130,16 @@ static void check_assignment(tc_context_t ctx, ast_node_t *node) {
 }
 
 static void check_print_stmt(tc_context_t ctx, ast_node_t *node) {
-  e_ika_type expr_type =
+  e_token_type expr_type =
       determine_type_for_expression(ctx, node->print_stmt.expr);
-  if (expr_type == ika_unknown) {
+  if (expr_type == TOKEN_UNKNOWN) {
     tc_error(ctx, node->print_stmt.expr->line, node->print_stmt.expr->column,
              "Cannot print expression as I cannot determine it's type.\n\n");
   }
 }
 
 static void update_symbol_table(symbol_table_t *symbol_table, char *symbol,
-                                e_ika_type type) {
+                                e_token_type type) {
   symbol_table_entry_t *entry = symbol_table_lookup(symbol_table, symbol);
   if (entry) {
     entry->type = type;
@@ -148,12 +147,12 @@ static void update_symbol_table(symbol_table_t *symbol_table, char *symbol,
 }
 
 static b8 tc_resolve_function_return(tc_context_t ctx, ast_node_t *node,
-                                     e_ika_type expected_return_type) {
+                                     e_token_type expected_return_type) {
 
   if (node->block.return_statement) {
     ctx.parent = node; // Important: update the code to allow proper
                        // symbol table lookup
-    e_ika_type actual_return_type = ika_void;
+    e_token_type actual_return_type = TOKEN_VOID;
     if (node->block.return_statement->returns.expr) {
       actual_return_type = determine_type_for_expression(
           ctx, node->block.return_statement->returns.expr);
@@ -163,8 +162,8 @@ static b8 tc_resolve_function_return(tc_context_t ctx, ast_node_t *node,
                node->block.return_statement->returns.expr->column,
                "Unexpected type.\n\nThe function claims to return %s but "
                "this expression is of type %s.",
-               ika_base_type_table[expected_return_type].label,
-               ika_base_type_table[actual_return_type].label);
+               token_as_char[expected_return_type],
+               token_as_char[actual_return_type]);
     }
     return TRUE;
   } else {
@@ -183,7 +182,7 @@ static b8 tc_resolve_function_return(tc_context_t ctx, ast_node_t *node,
         }
       }
     }
-    return expected_return_type == ika_void ? TRUE : FALSE;
+    return expected_return_type == TOKEN_VOID ? TRUE : FALSE;
   }
 }
 
@@ -197,14 +196,14 @@ static void check_fn_call(tc_context_t ctx, fn_call_t *fn_call) {
     for (uint32_t i = 0; i < darray_len(params); i++) {
       ast_node_t *param = &params[i];
       ast_node_t *expr = &exprs[i];
-      e_ika_type expr_type = determine_type_for_expression(ctx, expr);
+      e_token_type expr_type = determine_type_for_expression(ctx, expr);
       if (param->decl.type != expr_type) {
         char *param_name = param->decl.symbol->symbol.value;
         tc_error(ctx, expr->line, expr->column,
                  "Unexpected function argument type.\n\nParameter '%s' is "
                  "of type %s, but a %s was given.",
-                 param_name, ika_base_type_table[param->decl.type].label,
-                 ika_base_type_table[expr_type].label);
+                 param_name, token_as_char[param->decl.type],
+                 token_as_char[expr_type]);
       }
     }
   }
@@ -242,8 +241,9 @@ static void tc_check_types(tc_context_t ctx, ast_node_t *root) {
       break;
     }
     case ast_if_stmt: {
-      e_ika_type type = determine_type_for_expression(ctx, child->if_stmt.expr);
-      if (type == ika_bool) {
+      e_token_type type =
+          determine_type_for_expression(ctx, child->if_stmt.expr);
+      if (type == TOKEN_BOOL) {
         tc_check_types(ctx, child->if_stmt.if_block);
         if (child->if_stmt.else_block) {
           tc_check_types(ctx, child->if_stmt.else_block);

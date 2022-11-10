@@ -9,18 +9,18 @@ typedef struct c11_be_t {
   char *filename;
 } c11_be_t;
 
-static char *c11_op_codes[ika_eof] = {
-    [ika_int] = "i64",     [ika_int_literal] = "i64",
-    [ika_bool] = "b8",     [ika_bool_literal] = "b8",
-    [ika_float] = "f64",   [ika_float_literal] = "f64",
-    [ika_str] = "str",     [ika_str_literal] = "str",
-    [ika_rune] = "char *", [ika_void] = "void",
-    [ika_any] = "any_t",   [ika_add] = "+",
-    [ika_sub] = "-",       [ika_mul] = "*",
-    [ika_quo] = "/",       [ika_assign] = "=",
-    [ika_eql] = "==",      [ika_neq] = "!=",
-    [ika_lt] = "<",        [ika_gt] = ">",
-    [ika_lte] = "<=",      [ika_gte] = ">=",
-};
+static char *c11_op_codes[TOKEN_EOF] = {
+    [TOKEN_INT] = "i64",     [TOKEN_INT_LITERAL] = "i64",
+    [TOKEN_BOOL] = "b8",     [TOKEN_BOOL_LITERAL] = "b8",
+    [TOKEN_FLOAT] = "f64",   [TOKEN_FLOAT_LITERAL] = "f64",
+    [TOKEN_STR] = "str",     [TOKEN_STR_LITERAL] = "str",
+    [TOKEN_RUNE] = "char *", [TOKEN_VOID] = "void",
+    [TOKEN_ANY] = "any_t",   [TOKEN_ADD] = "+",
+    [TOKEN_SUB] = "-",       [TOKEN_MUL] = "*",
+    [TOKEN_QUO] = "/",       [TOKEN_ASSIGN] = "=",
+    [TOKEN_EQL] = "==",      [TOKEN_NEQ] = "!=",
+    [TOKEN_LT] = "<",        [TOKEN_GT] = ">",
+    [TOKEN_LTE] = "<=",      [TOKEN_GTE] = ">=",
+    [TOKEN_MOD] = "%"};
 
 b8 c11_generate(compilation_unit_t *);

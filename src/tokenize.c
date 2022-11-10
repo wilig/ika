@@ -11,6 +11,7 @@
 #include "errors.h"
 #include "helpers.h"
 #include "tokenize.h"
+#include "tokens.h"
 #include "types.h"
 
 static token_position_t tokenizer_calculate_position(char *source, u32 offset) {
@@ -115,8 +116,8 @@ static char *tokenizer_extract_value(tokenizer_input_stream_t *s,
 
 static bool is_operator(tokenizer_input_stream_t *s) {
   char ch = current_char(s);
-  for (int i = __ika_operators_start + 1; i < __ika_operators_end - 1; i++) {
-    if (ch == ika_type_to_char_map[i][0]) {
+  for (int i = _token_operators_start + 1; i < _token_operators_end - 1; i++) {
+    if (ch == token_char_map[i][0]) {
       return true;
     }
   }
@@ -151,7 +152,7 @@ static token_t tokenize_string(tokenizer_input_stream_t *s) {
            "closing \" at the end.  Example:  \"Hello world\"");
   }
   return (token_t){
-      .type = ika_str_literal,
+      .type = TOKEN_STR_LITERAL,
       .value = tokenizer_extract_value(s, starting_offset, s->pos++),
       .position = tokenizer_calculate_position(s->source, starting_offset - 1)};
 }
@@ -186,25 +187,25 @@ static token_t tokenize_comment(tokenizer_input_stream_t *s) {
     s->pos += 1;
   }
   return (token_t){
-      .type = ika_comment,
+      .type = TOKEN_COMMENT,
       .value = tokenizer_extract_value(s, starting_offset, s->pos),
       .position = tokenizer_calculate_position(s->source, starting_offset)};
 }
 
 static token_t tokenize_operator(tokenizer_input_stream_t *s) {
-  e_ika_type matched_op = ika_unknown;
+  e_token_type matched_op = TOKEN_UNKNOWN;
   u64 token_length = 0;
-  for (e_ika_type type = __ika_operators_start + 1; type < __ika_operators_end;
-       type++) {
-    token_length = strnlen(ika_type_to_char_map[type], 100);
-    if (streq_n(&s->source[s->pos], ika_type_to_char_map[type], token_length)) {
+  for (e_token_type type = _token_operators_start + 1;
+       type < _token_operators_end; type++) {
+    token_length = strnlen(token_char_map[type], 100);
+    if (streq_n(&s->source[s->pos], token_char_map[type], token_length)) {
       matched_op = type;
       break;
     }
   }
   token_t token = (token_t){
       .type = matched_op,
-      .value = ika_type_to_char_map[matched_op],
+      .value = token_char_map[matched_op],
       .position = tokenizer_calculate_position(s->source, s->pos),
   };
 
@@ -212,22 +213,22 @@ static token_t tokenize_operator(tokenizer_input_stream_t *s) {
   return token;
 }
 
-static e_ika_type lookup_ika_type_or_use_default(char *value,
-                                                 e_ika_type _default) {
-  for (e_ika_type type = __ika_types_start + 1; type < __ika_types_end;
+static e_token_type lookup_ika_type_or_use_default(char *value,
+                                                   e_token_type _default) {
+  for (e_token_type type = _token_types_start + 1; type < _token_types_end;
        type++) {
-    if (streq(value, ika_type_to_char_map[type]))
+    if (streq(value, token_char_map[type]))
       return type;
   }
-  for (e_ika_type type = __ika_keywords_start + 1; type < __ika_keywords_end;
-       type++) {
-    if (streq(value, ika_type_to_char_map[type]))
+  for (e_token_type type = _token_keywords_start + 1;
+       type < _token_keywords_end; type++) {
+    if (streq(value, token_char_map[type]))
       return type;
   }
   // Handle true and false reserved words
   // TODO: Mark them reserved somehow
   if (streq(value, "true") || streq(value, "false"))
-    return ika_bool_literal;
+    return TOKEN_BOOL_LITERAL;
   return _default;
 }
 
@@ -240,7 +241,7 @@ static token_t tokenize_identifier(tokenizer_input_stream_t *s) {
   } while (is_alpha_numeric(current_char(s)) && s->pos < s->source_length);
   char *value = tokenizer_extract_value(s, starting_offset, s->pos);
   return (token_t){
-      .type = lookup_ika_type_or_use_default(value, ika_symbol),
+      .type = lookup_ika_type_or_use_default(value, TOKEN_SYMBOL),
       .value = tokenizer_extract_value(s, starting_offset, s->pos),
       .position = tokenizer_calculate_position(s->source, starting_offset)};
 }
@@ -253,7 +254,8 @@ static token_t tokenize_numeric(tokenizer_input_stream_t *s) {
   } while (is_numeric(s) && s->pos < s->source_length);
   char *value = tokenizer_extract_value(s, starting_offset, s->pos);
   return (token_t){
-      .type = strchr(value, '.') == NULL ? ika_int_literal : ika_float_literal,
+      .type =
+          strchr(value, '.') == NULL ? TOKEN_INT_LITERAL : TOKEN_FLOAT_LITERAL,
       .position = tokenizer_calculate_position(s->source, starting_offset),
       .value = value,
   };
@@ -292,29 +294,15 @@ da_tokens *tokenizer_scan(char *source, u64 source_length,
 }
 
 const char *tokenizer_get_token_type_label(token_t *t) {
-  uint32_t total_types =
-      sizeof(ika_base_type_table) / sizeof(*ika_base_type_table);
-  for (u32 i = 0; i < total_types; i++) {
-    if (ika_base_type_table[i].type == t->type) {
-      return ika_base_type_table[i].label;
-    }
-  }
-  return "unknown";
+  return token_as_char[t->type];
 }
 
-const char *tokenizer_get_token_type_name(e_ika_type type) {
-  int i = 0;
-  while (ika_base_type_table[i].type != ika_eof) {
-    if (ika_base_type_table[i].type == type) {
-      return ika_base_type_table[i].label;
-    }
-    i++;
-  }
-  return "type_lookup_failed";
+const char *tokenizer_get_token_type_name(e_token_type type) {
+  return token_as_char[type];
 }
 
 void tokenizer_print_token(FILE *out, token_t *t) {
-  fprintf(out, "%s", ika_base_type_table[t->type].label);
+  fprintf(out, "%s", token_as_char[t->type]);
   fprintf(out, " %d,%d ", t->position.column, t->position.line);
   fprintf(out, "'%s'", t->value);
 }

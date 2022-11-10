@@ -10,7 +10,9 @@
 static void build_node(c11_be_t *, ast_node_t *);
 static void build_fn_call(c11_be_t *, ast_node_t *);
 
-static const char *ika_type_to_c(e_ika_type type) { return c11_op_codes[type]; }
+static const char *ika_type_to_c(e_token_type type) {
+  return c11_op_codes[type];
+}
 
 static void build_expr(c11_be_t *b, ast_node_t *node) {
   switch (node->type) {

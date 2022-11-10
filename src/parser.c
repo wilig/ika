@@ -42,10 +42,10 @@ static token_t *get_token(parser_state_t *state) {
 
 static bool is_comment(parser_state_t *state) {
   token_t *current_token = &state->tokens[state->current_token];
-  return current_token->type == ika_comment;
+  return current_token->type == TOKEN_COMMENT;
 }
 
-static bool expect_and_consume(parser_state_t *state, e_ika_type type) {
+static bool expect_and_consume(parser_state_t *state, e_token_type type) {
   token_t *token = get_token(state);
   if (token->type == type) {
     state->current_token += 1;
@@ -55,8 +55,8 @@ static bool expect_and_consume(parser_state_t *state, e_ika_type type) {
 }
 
 static void add_to_symbol_table(parser_state_t *state, char *symbol,
-                                e_ika_type type, bool constant, token_t *token,
-                                ast_node_t *node) {
+                                e_token_type type, bool constant,
+                                token_t *token, ast_node_t *node) {
   if (symbol_table_insert(state->current_scope, symbol, type, constant, node,
                           token->position.line) != SUCCESS) {
     // NOTE: Only one possible error for now
@@ -72,7 +72,7 @@ static ast_node_t *make_node() { return imust_alloc(sizeof(ast_node_t)); }
 
 static ast_node_t *parse_int_literal(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type == ika_int_literal) {
+  if (token->type == TOKEN_INT_LITERAL) {
     ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
@@ -88,7 +88,7 @@ static ast_node_t *parse_int_literal(parser_state_t *state) {
 
 static ast_node_t *parse_float_literal(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type == ika_float_literal) {
+  if (token->type == TOKEN_FLOAT_LITERAL) {
     ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
@@ -104,7 +104,7 @@ static ast_node_t *parse_float_literal(parser_state_t *state) {
 
 static ast_node_t *parse_str_literal(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type == ika_str_literal) {
+  if (token->type == TOKEN_STR_LITERAL) {
     ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
@@ -120,7 +120,7 @@ static ast_node_t *parse_str_literal(parser_state_t *state) {
 
 static ast_node_t *parse_bool_literal(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type == ika_bool_literal) {
+  if (token->type == TOKEN_BOOL_LITERAL) {
     ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
@@ -136,7 +136,7 @@ static ast_node_t *parse_bool_literal(parser_state_t *state) {
 
 static ast_node_t *parse_symbol(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type == ika_symbol) {
+  if (token->type == TOKEN_SYMBOL) {
     ast_node_t *node = make_node();
     node->starting_token = token;
     node->line = token->position.line;
@@ -153,16 +153,16 @@ static ast_node_t *parse_symbol(parser_state_t *state) {
 static ast_node_t *parse_fn_call(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  if (token->type == ika_symbol) {
+  if (token->type == TOKEN_SYMBOL) {
     ast_node_t *symbol = parse_symbol(state);
-    if (expect_and_consume(state, ika_paren_open)) {
+    if (expect_and_consume(state, TOKEN_PAREN_OPEN)) {
       da_nodes *exprs = darray_init(ast_node_t);
       do {
         ast_node_t *expr = parse_expr(state);
         if (expr)
           darray_append(exprs, *expr);
-      } while (expect_and_consume(state, ika_comma));
-      if (expect_and_consume(state, ika_paren_close)) {
+      } while (expect_and_consume(state, TOKEN_COMMA));
+      if (expect_and_consume(state, TOKEN_PAREN_CLOSE)) {
         ast_node_t *node = make_node();
         node->starting_token = token;
         node->line = token->position.line;
@@ -182,13 +182,13 @@ static ast_node_t *parse_fn_call(parser_state_t *state) {
 static ast_node_t *parse_literal(parser_state_t *state) {
   token_t *token = get_token(state);
   switch (token->type) {
-  case ika_paren_open: {
+  case TOKEN_PAREN_OPEN: {
     uint32_t starting_pos = state->current_token;
     advance_token_pointer(state);
     ast_node_t *parenthasized_expr = parse_expr(state);
     if (parenthasized_expr) {
       token = get_token(state);
-      if (token->type == ika_paren_close) {
+      if (token->type == TOKEN_PAREN_CLOSE) {
         advance_token_pointer(state);
         return parenthasized_expr;
       }
@@ -196,15 +196,15 @@ static ast_node_t *parse_literal(parser_state_t *state) {
     rollback_token_pointer(state, starting_pos);
     return NULL;
   }
-  case ika_int_literal:
+  case TOKEN_INT_LITERAL:
     return parse_int_literal(state);
-  case ika_float_literal:
+  case TOKEN_FLOAT_LITERAL:
     return parse_float_literal(state);
-  case ika_bool_literal:
+  case TOKEN_BOOL_LITERAL:
     return parse_bool_literal(state);
-  case ika_str_literal:
+  case TOKEN_STR_LITERAL:
     return parse_str_literal(state);
-  case ika_symbol: {
+  case TOKEN_SYMBOL: {
     // Could be a function call or an identifier
     ast_node_t *fn_call_node = parse_fn_call(state);
     if (fn_call_node)
@@ -222,7 +222,7 @@ static ast_node_t *parse_inner_term(parser_state_t *state,
                                     ast_node_t *longest) {
   if (longest) {
     token_t *op = get_token(state);
-    if (op->type == ika_mul || op->type == ika_quo) {
+    if (op->type == TOKEN_MUL || op->type == TOKEN_QUO) {
       uint32_t starting_pos = state->current_token;
       advance_token_pointer(state);
       ast_node_t *literal = parse_literal(state);
@@ -266,8 +266,8 @@ static ast_node_t *parse_inner_expr(parser_state_t *state,
                                     ast_node_t *longest) {
   if (longest) {
     token_t *op = get_token(state);
-    if (op->type == ika_add || op->type == ika_sub || op->type == ika_eql ||
-        op->type == ika_neq) {
+    if (op->type == TOKEN_ADD || op->type == TOKEN_SUB ||
+        op->type == TOKEN_EQL || op->type == TOKEN_NEQ) {
       uint32_t starting_pos = state->current_token;
       advance_token_pointer(state);
       ast_node_t *term = parse_term(state);
@@ -317,13 +317,13 @@ static ast_node_t *must_parse_expr(parser_state_t *state) {
   return expr;
 }
 
-static e_ika_type parse_ika_type(parser_state_t *state) {
+static e_token_type parse_ika_type(parser_state_t *state) {
   token_t *token = get_token(state);
-  if (token->type > __ika_types_start && token->type < __ika_types_end) {
+  if (token->type > _token_types_start && token->type < _token_types_end) {
     advance_token_pointer(state);
     return token->type;
   }
-  return ika_unknown;
+  return TOKEN_UNKNOWN;
 }
 
 // Declarations come in various flavors.  Mutable vs Unmutable.  With
@@ -332,14 +332,14 @@ static ast_node_t *parse_decl(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
   b8 constant = FALSE;
-  if (token->type == ika_keyword_let) {
+  if (token->type == TOKEN_KEYWORD_LET) {
     constant = TRUE;
     advance_token_pointer(state);
     token = get_token(state);
   }
   ast_node_t *symbol = parse_symbol(state);
-  if (symbol && expect_and_consume(state, ika_colon)) {
-    e_ika_type type = parse_ika_type(state);
+  if (symbol && expect_and_consume(state, TOKEN_COLON)) {
+    e_token_type type = parse_ika_type(state);
     add_to_symbol_table(state, symbol->symbol.value, type, constant, token, 0);
     ast_node_t *node = make_node();
     node->type = ast_decl;
@@ -350,13 +350,13 @@ static ast_node_t *parse_decl(parser_state_t *state) {
     node->decl.constant = constant;
     node->decl.type = type;
     token_t *next_token = get_token(state);
-    if (type != ika_unknown && next_token->type != ika_assign &&
+    if (type != TOKEN_UNKNOWN && next_token->type != TOKEN_ASSIGN &&
         !constant) { // Just a declaration
       node->decl.expr = NULL;
-    } else if (next_token->type == ika_assign) { // Declaration and assignment
+    } else if (next_token->type == TOKEN_ASSIGN) { // Declaration and assignment
       advance_token_pointer(state);
       node->decl.expr = must_parse_expr(state);
-    } else if (type == ika_unknown) {
+    } else if (type == TOKEN_UNKNOWN) {
       parse_error(state, next_token->position.line, next_token->position.column,
                   "Expected a type specifier or an expression assignment.");
     } else if (constant) {
@@ -372,9 +372,9 @@ static ast_node_t *parse_decl(parser_state_t *state) {
 static ast_node_t *parse_assignment(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  if (token->type == ika_symbol) {
+  if (token->type == TOKEN_SYMBOL) {
     ast_node_t *symbol = parse_symbol(state);
-    if (symbol && expect_and_consume(state, ika_assign)) {
+    if (symbol && expect_and_consume(state, TOKEN_ASSIGN)) {
       symbol_table_entry_t *var =
           symbol_table_lookup(state->current_scope, symbol->symbol.value);
       if (var) {
@@ -403,7 +403,7 @@ static ast_node_t *parse_assignment(parser_state_t *state) {
 static ast_node_t *parse_print_stmt(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  if (token->type == ika_keyword_print) {
+  if (token->type == TOKEN_KEYWORD_PRINT) {
     advance_token_pointer(state);
     ast_node_t *node = make_node();
     node->starting_token = token;
@@ -421,7 +421,7 @@ static ast_node_t *parse_print_stmt(parser_state_t *state) {
 static ast_node_t *parse_block(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  if (token->type == ika_brace_open) {
+  if (token->type == TOKEN_BRACE_OPEN) {
     // Make a new symbol table for the block/scope.  Store it in the parser
     // state and link it to the block/scope.  The current symbol table
     // must be restored afterwards.
@@ -437,7 +437,7 @@ static ast_node_t *parse_block(parser_state_t *state) {
     node->block.nodes = darray_init(ast_node_t);
     node->block.symbol_table = child_symbol_table;
     advance_token_pointer(state); // Move past opening brace
-    while (get_token(state)->type != ika_brace_close) {
+    while (get_token(state)->type != TOKEN_BRACE_CLOSE) {
       ast_node_t *child_node = parse_node(state);
       if (child_node) {
         if (child_node->type == ast_return) {
@@ -466,13 +466,13 @@ static ast_node_t *parse_fn(parser_state_t *state) {
   symbol_table_t *params_symbol_table = NULL;
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  if (token->type == ika_keyword_fn) {
+  if (token->type == TOKEN_KEYWORD_FN) {
     advance_token_pointer(state);
     ast_node_t *symbol = parse_symbol(state);
     if (symbol) {
       da_nodes *decls = darray_init(ast_node_t);
-      e_ika_type return_type = ika_void;
-      if (expect_and_consume(state, ika_paren_open)) {
+      e_token_type return_type = TOKEN_VOID;
+      if (expect_and_consume(state, TOKEN_PAREN_OPEN)) {
         // Function parameters are in their own scope
         params_symbol_table = make_symbol_table(state->current_scope);
         state->current_scope = params_symbol_table;
@@ -480,13 +480,13 @@ static ast_node_t *parse_fn(parser_state_t *state) {
           ast_node_t *decl = parse_decl(state);
           if (decl)
             darray_append(decls, *decl);
-        } while (expect_and_consume(state, ika_comma));
+        } while (expect_and_consume(state, TOKEN_COMMA));
 
-        if (expect_and_consume(state, ika_paren_close)) {
-          if (expect_and_consume(state, ika_colon)) {
+        if (expect_and_consume(state, TOKEN_PAREN_CLOSE)) {
+          if (expect_and_consume(state, TOKEN_COLON)) {
             token_t *next_token = get_token(state);
-            if (next_token->type > __ika_types_start &&
-                next_token->type < __ika_types_end) {
+            if (next_token->type > _token_types_start &&
+                next_token->type < _token_types_end) {
               return_type = next_token->type;
               advance_token_pointer(state);
             } else {
@@ -520,7 +520,7 @@ static ast_node_t *parse_fn(parser_state_t *state) {
         node->fn.block = block;
         node->fn.return_type = return_type;
 
-        add_to_symbol_table(state, symbol->symbol.value, ika_keyword_fn, true,
+        add_to_symbol_table(state, symbol->symbol.value, TOKEN_KEYWORD_FN, true,
                             token, node);
         return node;
       }
@@ -534,7 +534,7 @@ static ast_node_t *parse_fn(parser_state_t *state) {
 static ast_node_t *parse_if_statement(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  if (token->type == ika_keyword_if) {
+  if (token->type == TOKEN_KEYWORD_IF) {
     advance_token_pointer(state);
     ast_node_t *expr = parse_expr(state);
     if (expr) {
@@ -548,7 +548,7 @@ static ast_node_t *parse_if_statement(parser_state_t *state) {
         node->if_stmt.expr = expr;
         node->if_stmt.if_block = if_block;
         token = get_token(state);
-        if (token->type == ika_keyword_else) {
+        if (token->type == TOKEN_KEYWORD_ELSE) {
           advance_token_pointer(state);
           ast_node_t *else_block = parse_block(state);
           if (else_block) {
@@ -573,7 +573,7 @@ static ast_node_t *parse_if_statement(parser_state_t *state) {
 static ast_node_t *parse_return(parser_state_t *state) {
   token_t *token = get_token(state);
   uint32_t starting_pos = state->current_token;
-  if (token->type == ika_keyword_return) {
+  if (token->type == TOKEN_KEYWORD_RETURN) {
     advance_token_pointer(state);
     // Will be null in the case of a bare return
     ast_node_t *expr = parse_expr(state);

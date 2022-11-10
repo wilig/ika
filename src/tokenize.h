@@ -9,7 +9,7 @@
 
 #include "defines.h"
 #include "errors.h"
-#include "types.h"
+#include "tokens.h"
 
 typedef struct token_position_t {
   u32 line;
@@ -18,7 +18,7 @@ typedef struct token_position_t {
 
 typedef struct token_t {
   token_position_t position;
-  e_ika_type type;
+  e_token_type type;
   const char *value;
 } token_t;
 
@@ -40,6 +40,6 @@ void tokenizer_print_token(FILE *, token_t *);
 
 const char *tokenizer_get_token_type_label(token_t *);
 
-const char *tokenizer_get_token_type_name(e_ika_type);
+const char *tokenizer_get_token_type_name(e_token_type);
 
 void tokenizer_dump_context(token_t **, u32);

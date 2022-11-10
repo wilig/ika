@@ -16,7 +16,7 @@ void print_node_as_sexpr(ast_node_t *node) {
     printf("(");
     if (node->term.left)
       print_node_as_sexpr(node->term.left);
-    printf(" %s ", ika_type_to_char_map[node->term.op]);
+    printf(" %s ", token_char_map[node->term.op]);
     if (node->term.right)
       print_node_as_sexpr(node->term.right);
     printf(")");
@@ -24,7 +24,7 @@ void print_node_as_sexpr(ast_node_t *node) {
     printf("(");
     if (node->expr.left)
       print_node_as_sexpr(node->expr.left);
-    printf(" %s ", ika_type_to_char_map[node->expr.op]);
+    printf(" %s ", token_char_map[node->expr.op]);
     if (node->expr.right)
       print_node_as_sexpr(node->expr.right);
     printf(")");
@@ -68,7 +68,7 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
     if (node->decl.constant)
       printf("[CONST] ");
     printf("%s [%s] = ", identifier->symbol.value,
-           ika_base_type_table[node->decl.type].label);
+           token_as_char[node->decl.type]);
     if (node->decl.expr)
       print_node_as_sexpr(node->decl.expr);
     printf("\n");
@@ -103,12 +103,12 @@ void print_node_as_tree(ast_node_t *node, uint32_t indent_level) {
       ast_node_t *decl_node = &node->fn.parameters[i];
       identifier = decl_node->decl.symbol;
       printf("%s:%s", identifier->symbol.value,
-             ika_base_type_table[decl_node->decl.type].label);
+             token_as_char[decl_node->decl.type]);
       if (i < darray_len(node->fn.parameters) - 1)
         printf(", ");
     }
     printf(") returns ");
-    printf("%s", ika_base_type_table[node->fn.return_type].label);
+    printf("%s", token_as_char[node->fn.return_type]);
     printf("\n");
     print_node_as_tree(node->fn.block, indent_level);
     break;
@@ -183,7 +183,7 @@ void print_symbol_table(symbol_table_t *t) {
     symbol_table_entry_t *entry =
         symbol_table_lookup(t, str_to_cstr(*ht_keys.keys[i])); // LEAK
     printf("│ %-37s", entry->symbol);
-    printf("│ %-19s", ika_base_type_table[entry->type].label);
+    printf("│ %-19s", token_as_char[entry->type]);
     printf("│ %*i", 10, entry->line);
     printf("│ %*p", 16, entry->node_address);
     if (entry->constant)

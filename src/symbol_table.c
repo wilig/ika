@@ -9,11 +9,11 @@
 #include "symbol_table.h"
 #include "types.h"
 
-static uint32_t determine_byte_size(e_ika_type type) {
+static uint32_t determine_byte_size(e_token_type type) {
   switch (type) {
-  case ika_int:
+  case TOKEN_INT:
     return 8;
-  case ika_float:
+  case TOKEN_FLOAT:
     return 8;
   default:
     return 8;
@@ -44,7 +44,7 @@ symbol_table_entry_t *symbol_table_lookup(symbol_table_t *t, char *key) {
   return NULL;
 }
 
-IKA_STATUS symbol_table_insert(symbol_table_t *t, char *name, e_ika_type type,
+IKA_STATUS symbol_table_insert(symbol_table_t *t, char *name, e_token_type type,
                                b8 constant, void *node_address, uint32_t line) {
   symbol_table_entry_t *entry = imust_alloc(sizeof(symbol_table_entry_t));
   str *entry_key = imust_alloc(sizeof(str));

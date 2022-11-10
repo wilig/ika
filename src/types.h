@@ -1,130 +1,141 @@
 #pragma once
 
-typedef enum {
-  ika_unknown = 0,
+/* typedef enum { */
+/*   TOKEN_UNKNOWN = 0, */
 
-  __ika_types_start,
-  ika_int,
-  ika_float,
-  ika_bool,
-  ika_str,
-  ika_rune,
-  ika_any,
-  ika_void,
-  __ika_types_end,
+/*   __ika_types_start, */
+/*   TOKEN_INT, */
+/*   TOKEN_FLOAT, */
+/*   TOKEN_BOOL, */
+/*   TOKEN_STR, */
+/*   TOKEN_RUNE, */
+/*   TOKEN_ANY, */
+/*   TOKEN_VOID, */
+/*   __ika_types_end, */
 
-  ika_symbol,
+/*   TOKEN_SYMBOL, */
 
-  __ika_literal_start,
-  ika_int_literal,
-  ika_float_literal,
-  ika_str_literal,
-  ika_bool_literal,
-  __ika_literal_end,
+/*   __ika_literal_start, */
+/*   TOKEN_INT_LITERAL, */
+/*   TOKEN_FLOAT_LITERAL, */
+/*   TOKEN_STR_LITERAL, */
+/*   TOKEN_BOOL_LITERAL, */
+/*   __ika_literal_end, */
 
-  __ika_operators_start,
-  // Optimization:  Order these by token string length, this allows the
-  // tokenizer to search the list linearly and take the first match.
-  ika_gte,
-  ika_lte,
-  ika_eql,
-  ika_neq,
-  ika_add,
-  ika_sub,
-  ika_mul,
-  ika_quo,
-  ika_mod,
-  ika_bang,
-  ika_assign,
-  ika_paren_open,
-  ika_paren_close,
-  ika_brace_open,
-  ika_brace_close,
-  ika_box_open,
-  ika_box_close,
-  ika_semi_colon,
-  ika_colon,
-  ika_comma,
-  ika_dot,
-  ika_gt,
-  ika_lt,
-  __ika_operators_end,
+/*   __ika_operators_start, */
+/*   // Optimization:  Order these by token string length, this allows the */
+/*   // tokenizer to search the list linearly and take the first match. */
+/*   TOKEN_GTE, */
+/*   TOKEN_LTE, */
+/*   TOKEN_EQL, */
+/*   TOKEN_NEQ, */
+/*   TOKEN_ADD, */
+/*   TOKEN_SUB, */
+/*   TOKEN_MUL, */
+/*   TOKEN_QUO, */
+/*   TOKEN_MOD, */
+/*   TOKEN_BANG, */
+/*   TOKEN_ASSIGN, */
+/*   TOKEN_PAREN_OPEN, */
+/*   TOKEN_PAREN_CLOSE, */
+/*   TOKEN_BRACE_OPEN, */
+/*   TOKEN_BRACE_CLOSE, */
+/*   TOKEN_BOX_OPEN, */
+/*   TOKEN_BOX_CLOSE, */
+/*   TOKEN_SEMI_COLON, */
+/*   TOKEN_COLON, */
+/*   TOKEN_COMMA, */
+/*   TOKEN_DOT, */
+/*   TOKEN_GT, */
+/*   TOKEN_LT, */
+/*   __ika_operators_end, */
 
-  __ika_keywords_start,
-  ika_keyword_print,
-  ika_keyword_let,
-  ika_keyword_fn,
-  ika_keyword_return,
-  ika_keyword_if,
-  ika_keyword_else,
-  ika_keyword_behavior,
-  ika_keyword_requires,
-  __ika_keywords_end,
+/*   __ika_keywords_start, */
+/*   TOKEN_KEYWORD_PRINT, */
+/*   TOKEN_KEYWORD_LET, */
+/*   TOKEN_KEYWORD_FN, */
+/*   TOKEN_KEYWORD_RETURN, */
+/*   TOKEN_KEYWORD_IF, */
+/*   TOKEN_KEYWORD_ELSE, */
+/*   TOKEN_KEYWORD_BEHAVIOR, */
+/*   TOKEN_KEYWORD_REQUIRES, */
+/*   __ika_keywords_end, */
 
-  ika_comment,
-  ika_eof,
-} e_ika_type;
+/*   TOKEN_COMMENT, */
+/*   TOKEN_EOF, */
+/* } e_token_type; */
 
-typedef struct {
-  const char *txt;
-  e_ika_type type;
-  const char *label;
-} ika_type_map_entry_t;
+/* typedef struct { */
+/*   const char *txt; */
+/*   e_token_type type; */
+/*   const char *label; */
+/* } ika_type_map_entry_t; */
 
-static char *ika_type_to_char_map[] = {[ika_unknown] = "unknown",
-                                       [__ika_types_start] = "<!illegal>",
-                                       [ika_int] = "int",
-                                       [ika_float] = "float",
-                                       [ika_bool] = "bool",
-                                       [ika_str] = "str",
-                                       [ika_rune] = "rune",
-                                       [ika_any] = "any",
-                                       [ika_void] = "void",
-                                       [__ika_types_end] = "<!illegal>",
-                                       [ika_symbol] = "symbol",
-                                       [__ika_literal_start] = "<!illegal>",
-                                       [ika_int_literal] = "int literal",
-                                       [ika_float_literal] = "float literal",
-                                       [ika_str_literal] = "str literal",
-                                       [ika_bool_literal] = "bool literal",
-                                       [__ika_literal_end] = "<!illegal>",
-                                       [__ika_operators_start] = "<!illegal>",
-                                       [ika_gte] = ">=",
-                                       [ika_lte] = "<=",
-                                       [ika_eql] = "==",
-                                       [ika_neq] = "!=",
-                                       [ika_add] = "+",
-                                       [ika_sub] = "-",
-                                       [ika_mul] = "*",
-                                       [ika_quo] = "/",
-                                       [ika_mod] = "%",
-                                       [ika_bang] = "!",
-                                       [ika_assign] = "=",
-                                       [ika_paren_open] = "(",
-                                       [ika_paren_close] = ")",
-                                       [ika_brace_open] = "{",
-                                       [ika_brace_close] = "}",
-                                       [ika_box_open] = "[",
-                                       [ika_box_close] = "]",
-                                       [ika_semi_colon] = ";",
-                                       [ika_colon] = ":",
-                                       [ika_comma] = ",",
-                                       [ika_dot] = ".",
-                                       [ika_gt] = ">",
-                                       [ika_lt] = "<",
-                                       [__ika_operators_end] = "<!illegal>",
-                                       [__ika_keywords_start] = "<!illegal>",
-                                       [ika_keyword_print] = "print",
-                                       [ika_keyword_let] = "let",
-                                       [ika_keyword_fn] = "fn",
-                                       [ika_keyword_return] = "return",
-                                       [ika_keyword_if] = "if",
-                                       [ika_keyword_else] = "else",
-                                       [ika_keyword_behavior] = "behavior",
-                                       [ika_keyword_requires] = "requires",
-                                       [__ika_keywords_end] = "<!illegal>",
-                                       [ika_comment] = "comment",
-                                       [ika_eof] = "eof"};
+/* static char *ika_type_to_char_map[] = {[TOKEN_UNKNOWN] = "unknown", */
+/*                                        [__ika_types_start] = "<!illegal>", */
+/*                                        [TOKEN_INT] = "int", */
+/*                                        [TOKEN_FLOAT] = "float", */
+/*                                        [TOKEN_BOOL] = "bool", */
+/*                                        [TOKEN_STR] = "str", */
+/*                                        [TOKEN_RUNE] = "rune", */
+/*                                        [TOKEN_ANY] = "any", */
+/*                                        [TOKEN_VOID] = "void", */
+/*                                        [__ika_types_end] = "<!illegal>", */
+/*                                        [TOKEN_SYMBOL] = "symbol", */
+/*                                        [__ika_literal_start] = "<!illegal>",
+ */
+/*                                        [TOKEN_INT_LITERAL] = "int literal",
+ */
+/*                                        [TOKEN_FLOAT_LITERAL] = "float
+ * literal", */
+/*                                        [TOKEN_STR_LITERAL] = "str literal",
+ */
+/*                                        [TOKEN_BOOL_LITERAL] = "bool literal",
+ */
+/*                                        [__ika_literal_end] = "<!illegal>", */
+/*                                        [__ika_operators_start] =
+ * "<!illegal>", */
+/*                                        [TOKEN_GTE] = ">=", */
+/*                                        [TOKEN_LTE] = "<=", */
+/*                                        [TOKEN_EQL] = "==", */
+/*                                        [TOKEN_NEQ] = "!=", */
+/*                                        [TOKEN_ADD] = "+", */
+/*                                        [TOKEN_SUB] = "-", */
+/*                                        [TOKEN_MUL] = "*", */
+/*                                        [TOKEN_QUO] = "/", */
+/*                                        [TOKEN_MOD] = "%", */
+/*                                        [TOKEN_BANG] = "!", */
+/*                                        [TOKEN_ASSIGN] = "=", */
+/*                                        [TOKEN_PAREN_OPEN] = "(", */
+/*                                        [TOKEN_PAREN_CLOSE] = ")", */
+/*                                        [TOKEN_BRACE_OPEN] = "{", */
+/*                                        [TOKEN_BRACE_CLOSE] = "}", */
+/*                                        [TOKEN_BOX_OPEN] = "[", */
+/*                                        [TOKEN_BOX_CLOSE] = "]", */
+/*                                        [TOKEN_SEMI_COLON] = ";", */
+/*                                        [TOKEN_COLON] = ":", */
+/*                                        [TOKEN_COMMA] = ",", */
+/*                                        [TOKEN_DOT] = ".", */
+/*                                        [TOKEN_GT] = ">", */
+/*                                        [TOKEN_LT] = "<", */
+/*                                        [__ika_operators_end] = "<!illegal>",
+ */
+/*                                        [__ika_keywords_start] = "<!illegal>",
+ */
+/*                                        [TOKEN_KEYWORD_PRINT] = "print", */
+/*                                        [TOKEN_KEYWORD_LET] = "let", */
+/*                                        [TOKEN_KEYWORD_FN] = "fn", */
+/*                                        [TOKEN_KEYWORD_RETURN] = "return", */
+/*                                        [TOKEN_KEYWORD_IF] = "if", */
+/*                                        [TOKEN_KEYWORD_ELSE] = "else", */
+/*                                        [TOKEN_KEYWORD_BEHAVIOR] = "behavior",
+ */
+/*                                        [TOKEN_KEYWORD_REQUIRES] = "requires",
+ */
+/*                                        [__ika_keywords_end] = "<!illegal>",
+ */
+/*                                        [TOKEN_COMMENT] = "comment", */
+/*                                        [TOKEN_EOF] = "eof"}; */
 
 /* static ika_type_map_entry_t ika_base_type_table[] = { */
 /*     {.txt = "unknown", .type = ika_unknown, .label = "ika_unknown"}, */
