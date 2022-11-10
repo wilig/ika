@@ -16,7 +16,7 @@ void print_node_as_sexpr(ast_node_t *node) {
     printf("(");
     if (node->term.left)
       print_node_as_sexpr(node->term.left);
-    printf(" %s ", ika_base_type_table[node->term.op].txt);
+    printf(" %s ", ika_type_to_char_map[node->term.op]);
     if (node->term.right)
       print_node_as_sexpr(node->term.right);
     printf(")");
@@ -24,7 +24,7 @@ void print_node_as_sexpr(ast_node_t *node) {
     printf("(");
     if (node->expr.left)
       print_node_as_sexpr(node->expr.left);
-    printf(" %s ", ika_base_type_table[node->expr.op].txt);
+    printf(" %s ", ika_type_to_char_map[node->expr.op]);
     if (node->expr.right)
       print_node_as_sexpr(node->expr.right);
     printf(")");

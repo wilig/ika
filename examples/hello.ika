@@ -1,13 +1,35 @@
 
-fn hello() {
+fn hello(name: str) {
   print "Hello, "
+  print name
+  print "\n"
+}
+
+fn hello(num: int) {
+  print "Hello, "
+  print num
+  print "\n"
 }
 
 fn world() {
   print "World\n"
 }
 
+fn multiply(x: int, y: int): int {
+  return x * y
+}
+
 fn main() {
-  hello()
+  hello("Will")
   world()
+  print 10
+  print "\n"
+  print 245.2345
+  print "\n"
+  print true
+  print "\n"
+  print false
+  print "\n"
+  print multiply(10, 5)
+  print "\n"
 }

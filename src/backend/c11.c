@@ -148,15 +148,16 @@ static void build_function(c11_be_t *b, ast_node_t *node) {
   b->ident_level++;
   build_block(b, fn.block);
   b->ident_level--;
+  str_builder_append(b->sb, "\n");
 }
 
 static void build_print(c11_be_t *b, ast_node_t *node) {
   ASSERT_MSG((node->type == ast_print_stmt), "Expected a print_stmt node");
   print_t prt = node->print_stmt;
   // TODO: Add support for types besides string
-  str_builder_append(b->sb, "printf(\"");
+  str_builder_append(b->sb, "print(");
   build_expr(b, prt.expr);
-  str_builder_append(b->sb, "\");\n");
+  str_builder_append(b->sb, ");");
 }
 
 static void build_assignment(c11_be_t *b, ast_node_t *node) {
@@ -186,7 +187,7 @@ static void build_node(c11_be_t *b, ast_node_t *node) {
     build_fn_call(b, node);
     // Add statement terminator becuase build_fn_call doesn't as the
     // call may be part of an expression.
-    str_builder_append(b->sb, ";\n");
+    str_builder_append(b->sb, ";");
     break;
   case ast_print_stmt:
     build_print(b, node);
@@ -207,7 +208,9 @@ static void build_entry_point(c11_be_t *b) {
 }
 
 static void add_includes(c11_be_t *b) {
-  str_builder_append(b->sb, "#include <stdio.h>\n\n");
+  str_builder_append(b->sb, "#include <stdio.h>\n");
+  str_builder_append(b->sb, "#include <rt/str.h>\n");
+  str_builder_append(b->sb, "#include <rt/print.h>\n\n");
 }
 
 static char *get_c_filename(c11_be_t *b) {

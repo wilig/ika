@@ -52,8 +52,10 @@ static e_ika_type determine_type_for_expression(tc_context_t ctx,
     e_ika_type rtype =
         determine_type_for_expression(ctx, expression->expr.right);
     if (ltype == rtype) {
+      e_ika_type ot = expression->expr.op;
       // Is a boolean expression: == != => <= > <
-      if (expression->expr.op >= ika_eql && expression->expr.op <= ika_lte) {
+      if (ot == ika_eql || ot == ika_neq || ot == ika_gte || ot == ika_lte ||
+          ot == ika_gt || ot == ika_lt) {
         return ika_bool;
       } else {
         return ltype;
@@ -78,8 +80,12 @@ static e_ika_type determine_type_for_expression(tc_context_t ctx,
     symbol_table_entry_t *entry =
         symbol_table_lookup(ctx.parent->block.symbol_table,
                             expression->fn_call.symbol->symbol.value);
-    ast_node_t *function = (ast_node_t *)entry->node_address;
-    return function->fn.return_type;
+    if (entry) {
+      ast_node_t *function = (ast_node_t *)entry->node_address;
+      return function->fn.return_type;
+    } else {
+      return ika_unknown;
+    }
   }
   default: {
     ASSERT_MSG((false), "Unexpected expression type of %d\n")
@@ -184,20 +190,22 @@ static b8 tc_resolve_function_return(tc_context_t ctx, ast_node_t *node,
 static void check_fn_call(tc_context_t ctx, fn_call_t *fn_call) {
   symbol_table_entry_t *entry = symbol_table_lookup(
       ctx.parent->block.symbol_table, fn_call->symbol->symbol.value);
-  ast_node_t *function = (ast_node_t *)entry->node_address;
-  da_nodes *params = function->fn.parameters;
-  da_nodes *exprs = fn_call->exprs;
-  for (uint32_t i = 0; i < darray_len(params); i++) {
-    ast_node_t *param = &params[i];
-    ast_node_t *expr = &exprs[i];
-    e_ika_type expr_type = determine_type_for_expression(ctx, expr);
-    if (param->decl.type != expr_type) {
-      char *param_name = param->decl.symbol->symbol.value;
-      tc_error(ctx, expr->line, expr->column,
-               "Unexpected function argument type.\n\nParameter '%s' is "
-               "of type %s, but a %s was given.",
-               param_name, ika_base_type_table[param->decl.type].label,
-               ika_base_type_table[expr_type].label);
+  if (entry) {
+    ast_node_t *function = (ast_node_t *)entry->node_address;
+    da_nodes *params = function->fn.parameters;
+    da_nodes *exprs = fn_call->exprs;
+    for (uint32_t i = 0; i < darray_len(params); i++) {
+      ast_node_t *param = &params[i];
+      ast_node_t *expr = &exprs[i];
+      e_ika_type expr_type = determine_type_for_expression(ctx, expr);
+      if (param->decl.type != expr_type) {
+        char *param_name = param->decl.symbol->symbol.value;
+        tc_error(ctx, expr->line, expr->column,
+                 "Unexpected function argument type.\n\nParameter '%s' is "
+                 "of type %s, but a %s was given.",
+                 param_name, ika_base_type_table[param->decl.type].label,
+                 ika_base_type_table[expr_type].label);
+      }
     }
   }
 }

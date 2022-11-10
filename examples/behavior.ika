@@ -1,0 +1,35 @@
+
+// Behaviors define a set of functions that a Type must
+// implement to conform to the behavior.
+
+behavior printable {
+  to_human(any): str
+}
+
+fn to_human(i: int): str {
+  return cstr(i)
+}
+
+fn to_human(f: float): str {
+  return cstr(f)
+}
+
+// In order to get this to work, we need to generate an output
+// function for each possible type.  Later we will look at
+// preventing naming collisions with the user.
+
+fn output(item: any(requires printable)) {
+  print to_human(item);
+  print "\n";
+}
+
+fn main() {
+  output("Numbers:")
+  output(10)
+  output(12.5)
+  output("Bool:")
+  // This should fail
+  output(true);
+  output(false);
+  output("Done")
+}

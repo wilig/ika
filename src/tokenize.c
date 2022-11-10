@@ -116,7 +116,7 @@ static char *tokenizer_extract_value(tokenizer_input_stream_t *s,
 static bool is_operator(tokenizer_input_stream_t *s) {
   char ch = current_char(s);
   for (int i = __ika_operators_start + 1; i < __ika_operators_end - 1; i++) {
-    if (ch == ika_base_type_table[i].txt[0]) {
+    if (ch == ika_type_to_char_map[i][0]) {
       return true;
     }
   }
@@ -191,41 +191,38 @@ static token_t tokenize_comment(tokenizer_input_stream_t *s) {
       .position = tokenizer_calculate_position(s->source, starting_offset)};
 }
 
-// Match the largest possible operator.  So '>=' gets matched before '>'
 static token_t tokenize_operator(tokenizer_input_stream_t *s) {
-  u32 matched_op = ika_unknown;
-  u64 remaining_bytes = strlen(s->source) - s->pos;
-  u32 largest_matched_op_str_len = 0;
-  for (uint32_t i = __ika_operators_start + 1; i < __ika_operators_end; i++) {
-    const char *type = ika_base_type_table[i].txt;
-    if (strlen(type) < remaining_bytes) {
-      if (streq_n(&s->source[s->pos], type, (u32)strlen(type))) {
-        if (strlen(type) > largest_matched_op_str_len) {
-          matched_op = i;
-          largest_matched_op_str_len = (u32)strlen(type);
-        }
-      }
+  e_ika_type matched_op = ika_unknown;
+  u64 token_length = 0;
+  for (e_ika_type type = __ika_operators_start + 1; type < __ika_operators_end;
+       type++) {
+    token_length = strnlen(ika_type_to_char_map[type], 100);
+    if (streq_n(&s->source[s->pos], ika_type_to_char_map[type], token_length)) {
+      matched_op = type;
+      break;
     }
   }
   token_t token = (token_t){
       .type = matched_op,
-      .value = ika_base_type_table[matched_op].txt,
+      .value = ika_type_to_char_map[matched_op],
       .position = tokenizer_calculate_position(s->source, s->pos),
   };
 
-  s->pos += largest_matched_op_str_len;
+  s->pos += token_length;
   return token;
 }
 
 static e_ika_type lookup_ika_type_or_use_default(char *value,
                                                  e_ika_type _default) {
-  for (int i = __ika_types_start + 1; i < __ika_types_end; i++) {
-    if (streq(value, ika_base_type_table[i].txt))
-      return ika_base_type_table[i].type;
+  for (e_ika_type type = __ika_types_start + 1; type < __ika_types_end;
+       type++) {
+    if (streq(value, ika_type_to_char_map[type]))
+      return type;
   }
-  for (int i = __ika_keywords_start + 1; i < __ika_keywords_end; i++) {
-    if (streq(value, ika_base_type_table[i].txt))
-      return ika_base_type_table[i].type;
+  for (e_ika_type type = __ika_keywords_start + 1; type < __ika_keywords_end;
+       type++) {
+    if (streq(value, ika_type_to_char_map[type]))
+      return type;
   }
   // Handle true and false reserved words
   // TODO: Mark them reserved somehow

@@ -23,7 +23,20 @@
 * NO Rename block to scope??
 * DONE Command line flag for printing out debug structures (tokens, parse tree, symbol tables, etc)
 * DONE Improve printing of symbol tables, and print the heirarchy
+* DONE Find a better way to map ika_types to target literals
+* TODO Move main Ika type map to use the C11 type map method
+* TODO Allow functions with the same name but different type sigs
+* TODO Implement base allocator
+* TODO Implement constant folding
+* TODO Implement context
+* TODO Implement pointers and references
+* TODO Implement arrays, and dynamic arrays
+* TODO Implement additional operators
+* TODO Implement all expression precedences
 * TODO Find and fix segfaults
+* TODO Move print from keyword to function
+* TODO Trait/Behavior semantics
+* TODO Implement using keyword
 ** Try to limit pointers in favor of values
 * TODO Use levenstein(sp?) distance to detect symbol typos
 * TODO Add more asserts to switch statements default case
@@ -34,11 +47,16 @@
 ** DONE prevent assignment to constants
 ** DONE prevent using undeclared identifiers
 * IDEA Define my own IR, and possibly a VM for executing code at compile time
-** TODO constant folding
 ** TODO IR design
 ** TODO Bytecode generation
 * TODO Transpile to C for the initial compiler.
-** TODO Build out a standard library in C for supporting this language
+** DONE Setup a c11 backend
+** TODO Decide on value semantics (base object? dynamic function writing?)
+** TODO How to handle output?
+** TODO How to handle modules?
+** TODO Main function handling?
+** TODO Function naming?  (Add type sig? Or create struct for different parameter combos?)
+** TODO Build out a small runtime library in C for supporting this language
 * HOLD Investigate QBE or FASM for backend
 * HOLD Make true/false reserved words as well as values??
 * HOLD Update compilation_unit to store everything related to compilation?
